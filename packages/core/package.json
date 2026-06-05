@@ -8,6 +8,9 @@
     "typecheck": "tsc --noEmit",
     "test": "jest"
   },
+  "dependencies": {
+    "fast-xml-parser": "^4.4.0"
+  },
   "devDependencies": {
     "@types/jest": "*",
     "@types/node": "^20.0.0"
