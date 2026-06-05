@@ -186,7 +186,7 @@ pnpm is installed at `~/.local/share/pnpm/bin/pnpm`. Add `export PNPM_HOME="$HOM
 | Phase | Status | Summary |
 |-------|--------|---------|
 | 1 — Monorepo scaffolding | ✅ complete | pnpm workspace, TypeScript strict, ESLint platform boundary, Jest, CLAUDE.md |
-| 2 — Core parsers | pending | M3U, XMLTV, Xtream |
+| 2 — Core parsers | ✅ complete | M3U parser, XMLTV parser (fast-xml-parser), Xtream Codes client — 27 tests |
 | 3 — Core EPG + buffering policy | pending | EpgStore, BufferProfile, PlaybackController interface |
 | 4 — TV platform shell | pending | react-native-tvos, RnVideoController |
 | 5 — Desktop platform shell | pending | Tauri + RN-Web, HlsJsController |
