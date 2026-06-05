@@ -1,0 +1,11 @@
+{
+  "name": "@iptv-player/tv",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@iptv-player/core": "workspace:*"
+  }
+}

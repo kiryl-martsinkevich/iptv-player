@@ -1,0 +1,201 @@
+# IPTV Player — CLAUDE.md
+
+Reference document for AI assistants working in this repo. Update at the end of every phase.
+
+---
+
+## Project overview
+
+Cross-platform IPTV player with a strong EPG and exceptional playback resilience on slow/unreliable streams via aggressive, configurable prebuffering. Resilient playback is the headline feature.
+
+Targets: Apple TV (tvOS), Android TV, Linux (Tauri desktop), macOS (Tauri desktop).
+
+---
+
+## Locked decisions
+
+| Decision | Choice | Reason |
+|----------|--------|--------|
+| Language | TypeScript strict (`"strict": true`) | Type safety across the monorepo |
+| Framework | react-native-tvos fork | One codebase for tvOS + Android TV, TV focus engine built in |
+| Desktop shell | Tauri + RN-Web | Single Linux/macOS desktop codebase; `react-native-macos` is an alternative if native AVPlayer buffer control becomes critical |
+| Package manager | pnpm 9 | Workspace linking, disk efficiency |
+| TV player library | react-native-video (ExoPlayer/Media3 + AVPlayer) | Best programmatic ExoPlayer buffer control; first-class RN/TV support; critical for buffering headline feature |
+| Web/desktop player | hls.js (HLS) + mpegts.js (raw TS) | Standard, well-maintained, tunable buffer API |
+| DRM | Not in v1 | Mark where FairPlay/Widevine slots in when needed |
+
+**No `any` without a justifying comment.** The ESLint rule `@typescript-eslint/no-explicit-any` is set to `error`.
+
+---
+
+## Monorepo structure
+
+```
+iptv-player/
+├── packages/
+│   ├── core/       # platform-agnostic TypeScript — parsers, EPG, state, PlaybackController interface
+│   ├── tv/         # react-native-tvos (tvOS + Android TV)
+│   └── desktop/    # RN-Web + Tauri (Linux + macOS)
+├── tsconfig.base.json
+├── .eslintrc.js
+└── jest.config.js
+```
+
+### packages/core — platform import boundary
+
+**`packages/core` must never import from `react-native`, `react-native-*`, `@react-native/*`, DOM APIs, or Tauri APIs.** This is enforced by `packages/core/.eslintrc.js` with `no-restricted-imports`. Violations fail CI lint.
+
+Platform-specific behaviour is injected through interfaces (primarily `PlaybackController`). Core defines the interface; platform packages provide the implementation.
+
+### packages/tv
+
+react-native-tvos app. Built with Metro. Implements `PlaybackController` via `react-native-video` (`RnVideoController`). Scaffolded fully in Phase 4.
+
+### packages/desktop
+
+RN-Web app wrapped in a Tauri 2 shell. Built with Vite. Implements `PlaybackController` via hls.js + mpegts.js (`HlsJsController`). Scaffolded fully in Phase 5.
+
+---
+
+## Per-platform playback notes
+
+### Android TV — ExoPlayer (via react-native-video / Media3)
+
+react-native-video exposes a `bufferConfig` prop that maps to ExoPlayer's `DefaultLoadControl`. Key fields for the aggressive profile:
+
+```ts
+bufferConfig: {
+  minBufferMs: 50_000,          // keep 50 s minimum buffered
+  maxBufferMs: 120_000,         // allow up to 120 s buffered
+  bufferForPlaybackMs: 2_500,   // start playback after 2.5 s (fast zap)
+  bufferForPlaybackAfterRebufferMs: 5_000,  // 5 s after a stall
+}
+```
+
+Disk cache: `cachingEnabled: true` in `bufferConfig` where the react-native-video version supports it.
+
+ABR: ExoPlayer's adaptive track selection can be configured via `selectedVideoTrack` / `maxBitRate` props and the `minLoadRetryCount` field.
+
+### Apple TV (tvOS) — AVPlayer
+
+AVPlayer has **far less granular buffer control** than ExoPlayer. The only meaningful lever is:
+
+```swift
+player.currentItem?.preferredForwardBufferDuration = 120  // seconds
+player.automaticallyWaitsToMinimizeStalling = true
+```
+
+There is no equivalent to ExoPlayer's `minBufferMs` / `bufferForPlaybackMs` — AVPlayer decides internally when it has enough data. Document this limitation to users: on tvOS the aggressive profile increases the maximum pre-buffered duration but cannot enforce a minimum.
+
+react-native-video exposes `preferredForwardBufferDuration` as a prop.
+
+### Linux / macOS (desktop) — hls.js + mpegts.js
+
+hls.js tuning (HLS streams):
+
+```ts
+// Aggressive profile
+{
+  maxBufferLength: 120,         // s target buffer ahead
+  maxMaxBufferLength: 600,      // s absolute cap
+  backBufferLength: 30,         // s to keep behind playhead
+  maxBufferSize: 200 * 1000 * 1000,  // 200 MB
+  liveSyncDuration: 3,          // s behind live edge
+  liveMaxLatencyDuration: 10,
+}
+```
+
+mpegts.js tuning (raw MPEG-TS streams):
+
+```ts
+{
+  enableWorker: true,
+  lazyLoadMaxDuration: 120,
+  seekType: 'range',
+}
+```
+
+---
+
+## PlaybackController interface (Phase 3)
+
+Defined in `packages/core/src/playback/controller.ts`. Platform packages implement it; UI code imports only the interface.
+
+```ts
+interface PlaybackController {
+  load(url: string, bufferProfile: BufferProfile): void;
+  play(): void;
+  pause(): void;
+  seek(positionMs: number): void;
+  dispose(): void;
+  readonly status: PlaybackStatus;       // observable
+}
+```
+
+---
+
+## BufferProfile (Phase 3)
+
+Defined in `packages/core/src/playback/bufferProfile.ts`.
+
+```ts
+type BufferProfile =
+  | { kind: 'conservative' }
+  | { kind: 'balanced' }
+  | { kind: 'aggressive' }
+  | { kind: 'custom'; params: CustomBufferParams };
+```
+
+`toPlatformParams(profile, platform)` maps a `BufferProfile` to the platform-specific param shape. This mapping is unit-tested in `packages/core`.
+
+---
+
+## Slow-stream resilience (Phase 7)
+
+- **ABR cap**: `maxBitRate` (ExoPlayer) / `capLevelToPlayerSize` + `maxBitrate` (hls.js) — cap the ladder for slow links.
+- **Bitrate lock**: option to pin the lowest rung to stop oscillation.
+- **Stall watchdog**: if `currentTime` hasn't advanced in N seconds, force a seek to rebuffer.
+- **Retry with backoff**: on stream error, retry with exponential backoff (1 s → 2 s → 4 s … capped at 30 s).
+- **Prefetch** (behind a setting): pre-fetch the next channel's manifest + initial segments on EPG cell focus. Bandwidth-aware — disabled below a threshold.
+
+---
+
+## EPG (Phase 2–3, UI Phase 6)
+
+- Parse XMLTV off the UI thread (Worker on web; a background queue on RN).
+- Map EPG channels to M3U channels: exact `tvg-id` match first, fuzzy name match (normalised, case-insensitive, edit-distance ≤ 2) as fallback.
+- Cache EPG snapshots to disk; stale-while-revalidate on next app launch.
+
+---
+
+## Tooling quick reference
+
+| Command | What it does |
+|---------|-------------|
+| `pnpm typecheck` | `tsc -b packages/core` — composite build check |
+| `pnpm lint` | ESLint across all package `src/` trees |
+| `pnpm test` | Jest (core smoke + unit tests) |
+| `pnpm test:core` | Jest filtered to the core project |
+
+pnpm is installed at `~/.local/share/pnpm/bin/pnpm`. Add `export PNPM_HOME="$HOME/.local/share/pnpm" && export PATH="$PNPM_HOME/bin:$PATH"` to your shell profile if it isn't already active (the installer appended this to `~/.bashrc`).
+
+---
+
+## Phase progress
+
+| Phase | Status | Summary |
+|-------|--------|---------|
+| 1 — Monorepo scaffolding | ✅ complete | pnpm workspace, TypeScript strict, ESLint platform boundary, Jest, CLAUDE.md |
+| 2 — Core parsers | pending | M3U, XMLTV, Xtream |
+| 3 — Core EPG + buffering policy | pending | EpgStore, BufferProfile, PlaybackController interface |
+| 4 — TV platform shell | pending | react-native-tvos, RnVideoController |
+| 5 — Desktop platform shell | pending | Tauri + RN-Web, HlsJsController |
+| 6 — EPG UI | pending | Grid, Now/Next, ProgramDetail |
+| 7 — Slow-stream resilience | pending | ABR, retry/backoff, stall watchdog, prefetch |
+| 8 — Settings UI | pending | Buffer profile selector, source management |
+
+---
+
+## Content policy
+
+The app is a neutral player. Do not bundle, reference, or hardcode any stream content or provider details. All sources are user-supplied.
