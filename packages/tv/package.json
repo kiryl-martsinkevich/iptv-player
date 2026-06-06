@@ -2,10 +2,20 @@
   "name": "@iptv-player/tv",
   "version": "0.0.1",
   "private": true,
+  "main": "index.js",
   "scripts": {
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "start": "react-native start",
+    "android": "react-native run-android",
+    "ios": "react-native run-ios"
   },
   "dependencies": {
-    "@iptv-player/core": "workspace:*"
+    "@iptv-player/core": "workspace:*",
+    "react": "18.2.0",
+    "react-native": "npm:react-native-tvos@0.74.5-0",
+    "react-native-video": "^6.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0"
   }
 }

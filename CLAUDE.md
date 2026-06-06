@@ -188,8 +188,8 @@ pnpm is installed at `~/.local/share/pnpm/bin/pnpm`. Add `export PNPM_HOME="$HOM
 | 1 — Monorepo scaffolding | ✅ complete | pnpm workspace, TypeScript strict, ESLint platform boundary, Jest, CLAUDE.md |
 | 2 — Core parsers | ✅ complete | M3U parser, XMLTV parser (fast-xml-parser), Xtream Codes client — 27 tests |
 | 3 — Core EPG + buffering policy | ✅ complete | EpgData types, getNowNext, channel mapper (fuzzy Levenshtein), EPG cache, PlaybackController interface, BufferProfile + toPlatformParams — 58 tests total |
-| 4 — TV platform shell | pending | react-native-tvos, RnVideoController |
-| 5 — Desktop platform shell | pending | Tauri + RN-Web, HlsJsController |
+| 4 — TV platform shell | ✅ complete | react-native-tvos 0.74.5-0 + react-native-video 6.19.2; useRnVideoController hook (useReducer + stateRef), ExoPlayer bufferConfig via source prop, AVPlayer preferredForwardBufferDuration, PlayerScreen, BufferHealthBadge — typechecks clean |
+| 5 — Desktop platform shell | ✅ complete | Vite 5 + @tauri-apps/api (Tauri native shell deferred to Rust setup); hls.js 1.6.16 (HLS) + mpegts.js 1.7.3 (raw TS); useHlsJsController hook, URL-based stream detection, HlsBufferParams → hls.js config, PlayerPage, BufferHealthBadge — typechecks clean |
 | 6 — EPG UI | pending | Grid, Now/Next, ProgramDetail |
 | 7 — Slow-stream resilience | pending | ABR, retry/backoff, stall watchdog, prefetch |
 | 8 — Settings UI | pending | Buffer profile selector, source management |

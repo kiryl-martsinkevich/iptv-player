@@ -4,7 +4,12 @@
     "module": "ES2020",
     "moduleResolution": "Bundler",
     "jsx": "react-native",
-    "rootDir": "src"
+    "lib": ["ES2020"],
+    "rootDir": "src",
+    "noEmit": true,
+    "allowSyntheticDefaultImports": true,
+    "resolveJsonModule": true
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "references": [{ "path": "../core" }]
 }
