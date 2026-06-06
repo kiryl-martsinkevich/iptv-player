@@ -14,9 +14,31 @@ type Status = 'idle' | 'loading' | 'ready' | 'error';
 export interface UseEpgDataResult {
   channels: ChannelEntry[];
   epgData: EpgData | null;
+  epgMapping: Map<string, string> | null;
   status: Status;
   error: string | null;
   reload: () => void;
+}
+
+/** Compute Now/Next and programmes for a single entry from raw EPG data. */
+export function enrichEntry(
+  entry: ChannelEntry,
+  epgData: EpgData | null,
+  mapping: Map<string, string> | null,
+): ChannelEntry {
+  if (!epgData || !mapping) return entry;
+  const epgId = mapping.get(entry.m3uChannel.url);
+  if (!epgId) return entry;
+  const now = new Date();
+  const progs = epgData.programmes
+    .filter(p => p.channelId === epgId)
+    .sort((a, b) => a.start.getTime() - b.start.getTime());
+  return {
+    ...entry,
+    epgChannelId: epgId,
+    nowNext: getNowNext(epgData.programmes, epgId, now),
+    programs: progs,
+  };
 }
 
 export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
@@ -26,6 +48,7 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
   const [error, setError] = useState<string | null>(null);
   const reloadKey = useRef(0);
   const [tick, setTick] = useState(0);
+  const epgMappingRef = useRef<Map<string, string> | null>(null);
 
   const reload = useCallback(() => {
     reloadKey.current += 1;
@@ -57,8 +80,17 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
         if (cancelled) return;
         const m3uChannels = parseM3u(m3uText);
 
+        // Phase 1: structural entries immediately
+        const structural: ChannelEntry[] = m3uChannels.map(ch => ({
+          m3uChannel: ch,
+          epgChannelId: undefined,
+          nowNext: {},
+          programs: [],
+        }));
+        setChannels(structural);
+        setStatus('ready');
+
         if (xmltvText) {
-          // Defer XMLTV parsing off the interaction/animation frame.
           InteractionManager.runAfterInteractions(() => {
             if (cancelled) return;
             try {
@@ -71,41 +103,13 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
                 })),
                 programmes: xmltvResult.programmes,
               };
-              const mapping = buildEpgMapping(m3uChannels, data.channels);
-              const now = new Date();
-              const entries: ChannelEntry[] = m3uChannels.map(ch => {
-                const epgId = mapping.get(ch.url);
-                const progs = epgId
-                  ? data.programmes
-                      .filter(p => p.channelId === epgId)
-                      .sort((a, b) => a.start.getTime() - b.start.getTime())
-                  : [];
-                return {
-                  m3uChannel: ch,
-                  epgChannelId: epgId,
-                  nowNext: epgId ? getNowNext(data.programmes, epgId, now) : {},
-                  programs: progs,
-                };
-              });
+              epgMappingRef.current = buildEpgMapping(m3uChannels, data.channels);
               setEpgData(data);
-              setChannels(entries);
-              setStatus('ready');
             } catch (err) {
               setError(err instanceof Error ? err.message : 'EPG parse error');
               setStatus('error');
             }
           });
-        } else {
-          // No XMLTV — just M3U channels, no EPG data
-          const entries: ChannelEntry[] = m3uChannels.map(ch => ({
-            m3uChannel: ch,
-            epgChannelId: undefined,
-            nowNext: {},
-            programs: [],
-          }));
-          setChannels(entries);
-          setEpgData(null);
-          setStatus('ready');
         }
       } catch (err) {
         if (!cancelled) {
@@ -119,5 +123,5 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
     return () => { cancelled = true; };
   }, [m3uUrl, xmltvUrl, tick]);
 
-  return { channels, epgData, status, error, reload };
+  return { channels, epgData, epgMapping: epgMappingRef.current, status, error, reload };
 }
