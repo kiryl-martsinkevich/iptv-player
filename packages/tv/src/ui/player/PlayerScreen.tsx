@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { BackHandler, StyleSheet, View } from 'react-native';
 import type { BufferProfile } from '@iptv-player/core';
 import { useRnVideoController } from '../../playback/RnVideoController';
 import { BufferHealthBadge } from './BufferHealthBadge';
@@ -7,11 +7,13 @@ import { BufferHealthBadge } from './BufferHealthBadge';
 interface Props {
   streamUrl: string;
   bufferProfile?: BufferProfile;
+  onBack?: () => void;
 }
 
 export function PlayerScreen({
   streamUrl,
   bufferProfile = { kind: 'aggressive' },
+  onBack,
 }: Props): React.ReactElement {
   const { controller, VideoComponent } = useRnVideoController();
 
@@ -20,9 +22,16 @@ export function PlayerScreen({
     return () => {
       controller.dispose();
     };
-    // Re-load when the stream URL changes; bufferProfile intentionally excluded
-    // so the user can adjust it without interrupting playback.
   }, [streamUrl]);
+
+  useEffect(() => {
+    if (!onBack) return;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      onBack();
+      return true;
+    });
+    return () => sub.remove();
+  }, [onBack]);
 
   return (
     <View style={styles.container}>

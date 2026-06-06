@@ -190,7 +190,7 @@ pnpm is installed at `~/.local/share/pnpm/bin/pnpm`. Add `export PNPM_HOME="$HOM
 | 3 — Core EPG + buffering policy | ✅ complete | EpgData types, getNowNext, channel mapper (fuzzy Levenshtein), EPG cache, PlaybackController interface, BufferProfile + toPlatformParams — 58 tests total |
 | 4 — TV platform shell | ✅ complete | react-native-tvos 0.74.5-0 + react-native-video 6.19.2; useRnVideoController hook (useReducer + stateRef), ExoPlayer bufferConfig via source prop, AVPlayer preferredForwardBufferDuration, PlayerScreen, BufferHealthBadge — typechecks clean |
 | 5 — Desktop platform shell | ✅ complete | Vite 5 + @tauri-apps/api (Tauri native shell deferred to Rust setup); hls.js 1.6.16 (HLS) + mpegts.js 1.7.3 (raw TS); useHlsJsController hook, URL-based stream detection, HlsBufferParams → hls.js config, PlayerPage, BufferHealthBadge — typechecks clean |
-| 6 — EPG UI | pending | Grid, Now/Next, ProgramDetail |
+| 6 — EPG UI | ✅ complete | useEpgData hook (TV: InteractionManager defer; Desktop: Vite module Worker), ChannelList + ChannelRow (Now/Next), EpgGrid (2-h window, 8 px/min, absolute cells), ProgramDetail modal/overlay, EpgScreen (TV) + EpgPage (Desktop), source input App.tsx on both platforms — typechecks + lint + 58 tests clean |
 | 7 — Slow-stream resilience | pending | ABR, retry/backoff, stall watchdog, prefetch |
 | 8 — Settings UI | pending | Buffer profile selector, source management |
 

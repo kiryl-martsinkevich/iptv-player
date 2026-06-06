@@ -1,51 +1,65 @@
 import React, { useState } from 'react';
-import { PlayerPage } from './ui/player/PlayerPage';
+import { EpgPage } from './epg/EpgPage';
 
-// Demo HLS stream — replace with a real channel URL from the user's M3U source.
-const DEMO_URL = 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8';
+interface Sources {
+  m3uUrl: string;
+  xmltvUrl: string;
+}
 
 export function App(): React.ReactElement {
-  const [started, setStarted] = useState(false);
+  const [sources, setSources] = useState<Sources | null>(null);
+  const [m3uInput, setM3uInput] = useState('');
+  const [xmltvInput, setXmltvInput] = useState('');
 
-  if (started) {
-    return <PlayerPage streamUrl={DEMO_URL} />;
+  if (sources) {
+    return <EpgPage m3uUrl={sources.m3uUrl} xmltvUrl={sources.xmltvUrl} />;
   }
 
   return (
     <div style={splash}>
-      <p style={title}>IPTV Player</p>
-      <button style={button} onClick={() => setStarted(true)}>
-        Play Demo Stream
+      <h1 style={heading}>IPTV Player</h1>
+      <div style={field}>
+        <label style={labelStyle}>M3U URL</label>
+        <input
+          style={inputStyle}
+          value={m3uInput}
+          onChange={e => setM3uInput(e.target.value)}
+          placeholder="https://example.com/playlist.m3u"
+        />
+      </div>
+      <div style={field}>
+        <label style={labelStyle}>XMLTV URL (optional)</label>
+        <input
+          style={inputStyle}
+          value={xmltvInput}
+          onChange={e => setXmltvInput(e.target.value)}
+          placeholder="https://example.com/epg.xml"
+        />
+      </div>
+      <button
+        style={{ ...btn, ...(!m3uInput ? btnDisabled : {}) }}
+        disabled={!m3uInput}
+        onClick={() => m3uInput && setSources({ m3uUrl: m3uInput, xmltvUrl: xmltvInput })}
+      >
+        Load Channels
       </button>
     </div>
   );
 }
 
 const splash: React.CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
-  height: '100%',
-  background: '#111',
-  gap: 32,
+  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+  height: '100%', background: '#111', gap: 0,
 };
-
-const title: React.CSSProperties = {
-  color: '#fff',
-  fontSize: 40,
-  fontWeight: 700,
-  letterSpacing: 1,
-  margin: 0,
+const heading: React.CSSProperties = { color: '#fff', fontSize: 36, fontWeight: 700, marginBottom: 32 };
+const field: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 20, width: 400 };
+const labelStyle: React.CSSProperties = { color: '#aaa', fontSize: 13 };
+const inputStyle: React.CSSProperties = {
+  background: '#222', color: '#fff', border: '1px solid #333', borderRadius: 6,
+  padding: '10px 14px', fontSize: 14, outline: 'none',
 };
-
-const button: React.CSSProperties = {
-  background: '#e50914',
-  color: '#fff',
-  border: 'none',
-  borderRadius: 6,
-  padding: '14px 32px',
-  fontSize: 18,
-  fontWeight: 600,
-  cursor: 'pointer',
+const btn: React.CSSProperties = {
+  background: '#e50914', color: '#fff', border: 'none', borderRadius: 6,
+  padding: '12px 32px', fontSize: 16, fontWeight: 600, cursor: 'pointer', marginTop: 8,
 };
+const btnDisabled: React.CSSProperties = { background: '#555', cursor: 'not-allowed' };
