@@ -15,6 +15,8 @@ function isMpegTs(url: string): boolean {
   return path.endsWith('.ts') || path.includes('mpegts') || path.includes('mpeg-ts');
 }
 
+const MAX_RETRIES = 10;
+
 interface ControllerState {
   url: string | null;
   bufferProfile: BufferProfile;
@@ -246,6 +248,9 @@ export function useHlsJsController(): {
       // Retry with backoff on fatal errors
       hls.on(Hls.Events.ERROR, (_, data) => {
         if (!data.fatal) return;
+        // Show error state during the backoff window so the UI has feedback
+        dispatch({ type: 'SET_STATUS', status: { kind: 'error', message: data.type } });
+        if (stateRef.current.retryTick >= MAX_RETRIES) return; // give up after 10 retries
         const maxDelayMs = stateRef.current.resilienceConfig.retryMaxDelayMs ?? 30_000;
         const delay = getRetryDelay(stateRef.current.retryTick, maxDelayMs);
         setTimeout(() => {
