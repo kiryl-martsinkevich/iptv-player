@@ -1,4 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
+
+// In plain-browser dev (no Tauri), route through the local CORS proxy.
+// Tauri injects window.__TAURI__ at runtime; native fetch bypasses CORS.
+function proxyUrl(url: string): string {
+  if (typeof window !== 'undefined' && !('__TAURI__' in window)) {
+    return `/__proxy__/${url}`;
+  }
+  return url;
+}
 import {
   buildEpgMapping,
   getNowNext,
@@ -44,12 +53,12 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
     const run = async () => {
       try {
         const [m3uText, xmltvText] = await Promise.all([
-          fetch(m3uUrl).then(r => {
+          fetch(proxyUrl(m3uUrl)).then(r => {
             if (!r.ok) throw new Error(`M3U fetch failed: ${r.status}`);
             return r.text();
           }),
           xmltvUrl
-            ? fetch(xmltvUrl).then(r => {
+            ? fetch(proxyUrl(xmltvUrl)).then(r => {
                 if (!r.ok) throw new Error(`XMLTV fetch failed: ${r.status}`);
                 return r.text();
               })
