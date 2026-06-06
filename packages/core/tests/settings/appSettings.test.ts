@@ -15,6 +15,10 @@ describe('DEFAULT_SETTINGS', () => {
     expect(DEFAULT_SETTINGS.m3uUrl).toBe('');
     expect(DEFAULT_SETTINGS.xmltvUrl).toBe('');
   });
+
+  it('has empty favouriteUrls', () => {
+    expect(DEFAULT_SETTINGS.favouriteUrls).toEqual([]);
+  });
 });
 
 describe('mergeSettings', () => {
@@ -53,5 +57,15 @@ describe('mergeSettings', () => {
     const result = mergeSettings({ bufferProfile: customProfile });
     expect(result.bufferProfile).toEqual(customProfile);
     expect(() => toPlatformParams(result.bufferProfile, 'web')).not.toThrow();
+  });
+
+  it('merges favouriteUrls', () => {
+    const result = mergeSettings({ favouriteUrls: ['http://a.com/stream'] });
+    expect(result.favouriteUrls).toEqual(['http://a.com/stream']);
+  });
+
+  it('favouriteUrls defaults to empty array', () => {
+    const result = mergeSettings({});
+    expect(result.favouriteUrls).toEqual([]);
   });
 });

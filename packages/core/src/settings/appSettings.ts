@@ -5,6 +5,7 @@ export interface AppSettings {
   xmltvUrl: string;
   bufferProfile: BufferProfile;
   prefetchEnabled: boolean;
+  favouriteUrls: string[];
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -12,6 +13,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   xmltvUrl: '',
   bufferProfile: { kind: 'aggressive' },
   prefetchEnabled: false,
+  favouriteUrls: [],
 };
 
 export function mergeSettings(partial: Partial<AppSettings>): AppSettings {
