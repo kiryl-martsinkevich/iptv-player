@@ -147,7 +147,7 @@ export function EpgPage({ m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled }: Pr
           <BufferHealthBadge status={controller.status} />
         </div>
         <div style={{ flex: 1, overflowY: 'auto', borderTop: '1px solid #222' }}>
-          <EpgGrid entries={displayChannels} />
+          <EpgGrid entries={displayChannels} selectedUrl={activeUrl} />
         </div>
       </div>
 

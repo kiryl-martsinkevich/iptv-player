@@ -114,7 +114,7 @@ export function EpgScreen({ m3uUrl, xmltvUrl, bufferProfile }: Props): React.Rea
           />
         )}
       </View>
-      <EpgGrid entries={displayChannels} />
+      <EpgGrid entries={displayChannels} selectedUrl={null} />
 
       <ChannelContextMenu
         visible={contextEntry !== null}

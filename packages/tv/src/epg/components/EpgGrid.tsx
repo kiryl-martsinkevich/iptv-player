@@ -7,14 +7,20 @@ import { ProgramDetail } from './ProgramDetail';
 
 interface Props {
   entries: ChannelEntry[];
+  selectedUrl?: string | null;
 }
 
 const TRACK_WIDTH = GRID_HOURS * 60 * PX_PER_MIN; // 960
 
-export function EpgGrid({ entries }: Props): React.ReactElement {
+export function EpgGrid({ entries, selectedUrl }: Props): React.ReactElement {
   const [selected, setSelected] = useState<EpgProgramme | null>(null);
   const { start: windowStart, end: windowEnd } = getGridWindow();
   const now = new Date();
+
+  // When a channel is selected on the left, show only that channel's timeline
+  const visibleEntries = selectedUrl
+    ? entries.filter(e => e.m3uChannel.url === selectedUrl)
+    : entries;
 
   const nowLeft = cellLeft(now, windowStart);
 
@@ -39,7 +45,7 @@ export function EpgGrid({ entries }: Props): React.ReactElement {
 
       {/* Channel rows */}
       <FlatList
-        data={entries}
+        data={visibleEntries}
         keyExtractor={item => item.m3uChannel.url}
         renderItem={({ item }) => {
           const visible = item.programs.filter(
