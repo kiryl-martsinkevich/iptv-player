@@ -42,6 +42,7 @@ export function EpgPage({ m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled }: Pr
   const [activeTab, setActiveTab] = useState<Tab>('favourites');
   const [searchQuery, setSearchQuery] = useState('');
   const [contextMenu, setContextMenu] = useState<{ entry: ChannelEntry; x: number; y: number } | null>(null);
+  const [volume, setVolume] = useState(1);
   const { prefetch } = usePrefetch(prefetchEnabled, 2);
 
   const favourites = useMemo(() => new Set(settings.favouriteUrls), [settings.favouriteUrls]);
@@ -145,6 +146,25 @@ export function EpgPage({ m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled }: Pr
         <div style={{ position: 'relative', height: '55%', flexShrink: 0, background: '#000' }}>
           {VideoComponent}
           <BufferHealthBadge status={controller.status} />
+          <div style={{
+            position: 'absolute', bottom: 8, left: 8, right: 8,
+            display: 'flex', alignItems: 'center', gap: 8,
+          }}>
+            <span style={{ color: '#888', fontSize: 11 }}>🔊</span>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={volume}
+              onChange={e => {
+                const v = parseFloat(e.target.value);
+                setVolume(v);
+                controller.setVolume(v);
+              }}
+              style={{ flex: 1, accentColor: '#e50914' }}
+            />
+          </div>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', borderTop: '1px solid #222' }}>
           <EpgGrid entries={displayChannels} selectedUrl={activeUrl} />

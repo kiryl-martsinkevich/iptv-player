@@ -88,6 +88,9 @@ export function useHlsJsController(): {
       seek: (positionMs: number) => {
         if (videoRef.current) videoRef.current.currentTime = positionMs / 1000;
       },
+      setVolume: (level: number) => {
+        if (videoRef.current) videoRef.current.volume = Math.max(0, Math.min(1, level));
+      },
       dispose: () => {
         videoRef.current?.pause();
         dispatch({ type: 'DISPOSE' });

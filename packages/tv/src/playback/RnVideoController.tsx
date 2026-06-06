@@ -21,6 +21,7 @@ const MAX_RETRIES = 10;
 interface ControllerState {
   url: string | null;
   paused: boolean;
+  volume: number;
   bufferProfile: BufferProfile;
   resilienceConfig: ResilienceConfig;
   retryTick: number;
@@ -31,6 +32,7 @@ type Action =
   | { type: 'LOAD'; url: string; bufferProfile: BufferProfile; resilienceConfig: ResilienceConfig }
   | { type: 'PLAY' }
   | { type: 'PAUSE' }
+  | { type: 'SET_VOLUME'; level: number }
   | { type: 'DISPOSE' }
   | { type: 'SET_STATUS'; status: PlaybackStatus }
   | { type: 'RETRY' };
@@ -38,6 +40,7 @@ type Action =
 const INITIAL: ControllerState = {
   url: null,
   paused: true,
+  volume: 1,
   bufferProfile: { kind: 'balanced' },
   resilienceConfig: {},
   retryTick: 0,
@@ -67,6 +70,8 @@ function reducer(state: ControllerState, action: Action): ControllerState {
             ? { kind: 'paused', positionMs: state.status.positionMs }
             : state.status,
       };
+    case 'SET_VOLUME':
+      return { ...state, volume: Math.max(0, Math.min(1, action.level)) };
     case 'DISPOSE':
       return INITIAL;
     case 'SET_STATUS':
@@ -100,6 +105,7 @@ export function useRnVideoController(): {
       play: () => dispatch({ type: 'PLAY' }),
       pause: () => dispatch({ type: 'PAUSE' }),
       seek: (positionMs: number) => videoRef.current?.seek(positionMs / 1000),
+      setVolume: (level: number) => dispatch({ type: 'SET_VOLUME', level }),
       dispose: () => dispatch({ type: 'DISPOSE' }),
       get status(): PlaybackStatus {
         return stateRef.current.status;
@@ -196,6 +202,7 @@ export function useRnVideoController(): {
       ref={videoRef}
       source={{ uri: state.url, bufferConfig: exoParams }}
       paused={state.paused}
+      volume={state.volume}
       style={{ width: '100%', height: '100%' }}
       resizeMode={ResizeMode.CONTAIN}
       preferredForwardBufferDuration={avParams.preferredForwardBufferDuration}

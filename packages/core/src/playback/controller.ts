@@ -19,6 +19,7 @@ export interface PlaybackController {
   play(): void;
   pause(): void;
   seek(positionMs: number): void;
+  setVolume(level: number): void;
   dispose(): void;
   readonly status: PlaybackStatus;
 }
