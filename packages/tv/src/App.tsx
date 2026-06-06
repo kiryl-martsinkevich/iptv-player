@@ -20,14 +20,6 @@ export function App(): React.ReactElement {
     }
   }, [loading, settings.m3uUrl, settings.xmltvUrl]);
 
-  // Reset inputs when URL is cleared (e.g., from SettingsModal)
-  useEffect(() => {
-    if (!settings.m3uUrl) {
-      setM3uInput('');
-      setXmltvInput('');
-    }
-  }, [settings.m3uUrl]);
-
   if (loading) {
     return (
       <View style={styles.center}>

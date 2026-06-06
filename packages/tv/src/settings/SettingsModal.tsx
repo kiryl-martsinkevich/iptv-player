@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { type AppSettings, type BufferProfile } from '@iptv-player/core';
 
@@ -21,6 +21,14 @@ export function SettingsModal({ visible, settings, onSave, onClose }: Props): Re
   const [m3uUrl, setM3uUrl] = useState(settings.m3uUrl);
   const [xmltvUrl, setXmltvUrl] = useState(settings.xmltvUrl);
   const [bufferProfile, setBufferProfile] = useState<BufferProfile>(settings.bufferProfile);
+
+  useEffect(() => {
+    if (visible) {
+      setM3uUrl(settings.m3uUrl);
+      setXmltvUrl(settings.xmltvUrl);
+      setBufferProfile(settings.bufferProfile);
+    }
+  }, [visible]);
 
   const handleSave = () => {
     onSave({ m3uUrl, xmltvUrl, bufferProfile });
