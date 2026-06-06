@@ -1,5 +1,6 @@
 import { DEFAULT_SETTINGS, mergeSettings } from '../../src/settings/appSettings';
 import { toPlatformParams } from '../../src/playback/bufferProfile';
+import type { BufferProfile } from '../../src/playback/bufferProfile';
 
 describe('DEFAULT_SETTINGS', () => {
   it('has a valid bufferProfile', () => {
@@ -39,5 +40,18 @@ describe('mergeSettings', () => {
     const result = mergeSettings({ prefetchEnabled: true });
     expect(result.prefetchEnabled).toBe(true);
     expect(result.bufferProfile).toEqual({ kind: 'aggressive' });
+  });
+
+  it('produces valid platform params after bufferProfile override', () => {
+    const result = mergeSettings({ bufferProfile: { kind: 'conservative' } });
+    expect(() => toPlatformParams(result.bufferProfile, 'web')).not.toThrow();
+    expect(() => toPlatformParams(result.bufferProfile, 'android')).not.toThrow();
+  });
+
+  it('merges custom bufferProfile', () => {
+    const customProfile: BufferProfile = { kind: 'custom', params: { hls: { maxBufferLength: 90 } } };
+    const result = mergeSettings({ bufferProfile: customProfile });
+    expect(result.bufferProfile).toEqual(customProfile);
+    expect(() => toPlatformParams(result.bufferProfile, 'web')).not.toThrow();
   });
 });

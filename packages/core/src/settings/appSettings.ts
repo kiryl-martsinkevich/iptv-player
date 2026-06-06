@@ -15,5 +15,10 @@ export const DEFAULT_SETTINGS: AppSettings = {
 };
 
 export function mergeSettings(partial: Partial<AppSettings>): AppSettings {
-  return { ...DEFAULT_SETTINGS, ...partial };
+  const bp = partial.bufferProfile ?? DEFAULT_SETTINGS.bufferProfile;
+  return {
+    ...DEFAULT_SETTINGS,
+    ...partial,
+    bufferProfile: { ...bp } as BufferProfile,
+  };
 }
