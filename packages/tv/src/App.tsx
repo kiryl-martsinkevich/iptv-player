@@ -1,19 +1,60 @@
-import React, { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { EpgScreen } from './epg/EpgScreen';
-
-interface Sources {
-  m3uUrl: string;
-  xmltvUrl: string;
-}
+import { useSettings } from './settings/useSettings';
+import { SettingsModal } from './settings/SettingsModal';
 
 export function App(): React.ReactElement {
-  const [sources, setSources] = useState<Sources | null>(null);
+  const { settings, updateSettings, loading } = useSettings();
+  const [showSettings, setShowSettings] = useState(false);
   const [m3uInput, setM3uInput] = useState('');
   const [xmltvInput, setXmltvInput] = useState('');
 
-  if (sources) {
-    return <EpgScreen m3uUrl={sources.m3uUrl} xmltvUrl={sources.xmltvUrl} />;
+  // Pre-fill inputs once settings load from AsyncStorage
+  const initializedRef = useRef(false);
+  useEffect(() => {
+    if (!loading && !initializedRef.current) {
+      initializedRef.current = true;
+      setM3uInput(settings.m3uUrl);
+      setXmltvInput(settings.xmltvUrl);
+    }
+  }, [loading, settings.m3uUrl, settings.xmltvUrl]);
+
+  // Reset inputs when URL is cleared (e.g., from SettingsModal)
+  useEffect(() => {
+    if (!settings.m3uUrl) {
+      setM3uInput('');
+      setXmltvInput('');
+    }
+  }, [settings.m3uUrl]);
+
+  if (loading) {
+    return (
+      <View style={styles.center}>
+        <ActivityIndicator size="large" color="#e50914" />
+      </View>
+    );
+  }
+
+  if (settings.m3uUrl) {
+    return (
+      <View style={styles.fill}>
+        <EpgScreen
+          m3uUrl={settings.m3uUrl}
+          xmltvUrl={settings.xmltvUrl}
+          bufferProfile={settings.bufferProfile}
+        />
+        <TouchableOpacity style={styles.gearBtn} onPress={() => setShowSettings(true)}>
+          <Text style={styles.gearText}>⚙</Text>
+        </TouchableOpacity>
+        <SettingsModal
+          visible={showSettings}
+          settings={settings}
+          onSave={updateSettings}
+          onClose={() => setShowSettings(false)}
+        />
+      </View>
+    );
   }
 
   return (
@@ -39,7 +80,7 @@ export function App(): React.ReactElement {
       />
       <TouchableOpacity
         style={[styles.btn, !m3uInput && styles.btnDisabled]}
-        onPress={() => m3uInput && setSources({ m3uUrl: m3uInput, xmltvUrl: xmltvInput })}
+        onPress={() => m3uInput && updateSettings({ m3uUrl: m3uInput, xmltvUrl: xmltvInput })}
         disabled={!m3uInput}
       >
         <Text style={styles.btnText}>Load Channels</Text>
@@ -49,21 +90,22 @@ export function App(): React.ReactElement {
 }
 
 const styles = StyleSheet.create({
+  fill: { flex: 1 },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#111' },
   setup: { flex: 1, backgroundColor: '#111', justifyContent: 'center', paddingHorizontal: 80 },
   heading: { color: '#fff', fontSize: 48, fontWeight: '700', marginBottom: 40, textAlign: 'center' },
   label: { color: '#aaa', fontSize: 22, marginBottom: 8 },
   input: {
-    backgroundColor: '#222',
-    color: '#fff',
-    fontSize: 20,
-    borderRadius: 8,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    marginBottom: 24,
-    borderWidth: 1,
-    borderColor: '#333',
+    backgroundColor: '#222', color: '#fff', fontSize: 20, borderRadius: 8,
+    paddingHorizontal: 20, paddingVertical: 14, marginBottom: 24, borderWidth: 1, borderColor: '#333',
   },
   btn: { backgroundColor: '#e50914', borderRadius: 8, paddingVertical: 18, alignItems: 'center', marginTop: 8 },
   btnDisabled: { backgroundColor: '#555' },
   btnText: { color: '#fff', fontSize: 26, fontWeight: '700' },
+  gearBtn: {
+    position: 'absolute', bottom: 24, right: 24,
+    backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 22, width: 44, height: 44,
+    alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#444',
+  },
+  gearText: { color: '#fff', fontSize: 20 },
 });

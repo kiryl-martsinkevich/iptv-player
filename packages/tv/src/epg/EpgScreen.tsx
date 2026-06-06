@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { type BufferProfile } from '@iptv-player/core';
 import { PlayerScreen } from '../ui/player/PlayerScreen';
 import { ChannelList } from './components/ChannelList';
 import { EpgGrid } from './components/EpgGrid';
@@ -9,9 +10,10 @@ import { useEpgData } from './useEpgData';
 interface Props {
   m3uUrl: string;
   xmltvUrl: string;
+  bufferProfile: BufferProfile;
 }
 
-export function EpgScreen({ m3uUrl, xmltvUrl }: Props): React.ReactElement {
+export function EpgScreen({ m3uUrl, xmltvUrl, bufferProfile }: Props): React.ReactElement {
   const { channels, status, error } = useEpgData(m3uUrl, xmltvUrl);
   const [activeChannel, setActiveChannel] = useState<ChannelEntry | null>(null);
 
@@ -19,6 +21,7 @@ export function EpgScreen({ m3uUrl, xmltvUrl }: Props): React.ReactElement {
     return (
       <PlayerScreen
         streamUrl={activeChannel.m3uChannel.url}
+        bufferProfile={bufferProfile}
         onBack={() => setActiveChannel(null)}
       />
     );

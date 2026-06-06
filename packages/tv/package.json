@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@iptv-player/core": "workspace:*",
+    "@react-native-async-storage/async-storage": "^3.1.1",
     "react": "18.2.0",
     "react-native": "npm:react-native-tvos@0.74.5-0",
     "react-native-video": "^6.0.0"
