@@ -16,7 +16,10 @@ export function usePrefetch(enabled: boolean, minBandwidthMbps: number): {
       if (prefetched.current.has(url)) return;
       if (bandwidthMbps() < minBandwidthMbps) return;
       prefetched.current.add(url);
-      fetch(url, { method: 'GET' }).catch(() => {});
+      const ac = new AbortController();
+      fetch(url, { method: 'GET', signal: ac.signal })
+        .then(res => { ac.abort(); return res.body?.cancel(); })
+        .catch(() => {});
     },
     [enabled, minBandwidthMbps],
   );

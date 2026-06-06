@@ -16,7 +16,7 @@ export function EpgPage({ m3uUrl, xmltvUrl }: Props): React.ReactElement {
   const { channels, status, error } = useEpgData(m3uUrl, xmltvUrl);
   const { controller, VideoComponent } = useHlsJsController();
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
-  const { prefetch } = usePrefetch(true, 2);
+  const { prefetch } = usePrefetch(false, 2);
 
   const handleSelect = (entry: ChannelEntry) => {
     setActiveUrl(entry.m3uChannel.url);
