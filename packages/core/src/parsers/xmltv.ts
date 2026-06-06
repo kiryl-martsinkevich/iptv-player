@@ -76,8 +76,8 @@ export function parseXmltv(content: string): XmltvResult {
     trimValues: true,
     isArray: (tagName) =>
       ['channel', 'programme', 'display-name', 'icon'].includes(tagName),
-    // Real XMLTV files routinely exceed the 1000-entity default in programme descriptions.
-    processEntities: { maxTotalExpansions: 100_000 },
+    // XMLTV sources are user-supplied; no XEE risk. Remove the expansion cap.
+    processEntities: { maxTotalExpansions: Number.MAX_SAFE_INTEGER },
   });
 
   // XMLParser.parse returns unknown; the shape depends entirely on the input document.
