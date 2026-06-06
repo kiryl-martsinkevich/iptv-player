@@ -6,14 +6,16 @@ interface Props {
   entry: ChannelEntry;
   isSelected: boolean;
   onSelect: () => void;
+  onLongPress?: () => void;
 }
 
-export function ChannelRow({ entry, isSelected, onSelect }: Props): React.ReactElement {
+export function ChannelRow({ entry, isSelected, onSelect, onLongPress }: Props): React.ReactElement {
   const { m3uChannel, nowNext } = entry;
   return (
     <Pressable
       style={[styles.row, isSelected && styles.rowSelected]}
       onPress={onSelect}
+      onLongPress={onLongPress}
     >
       <Text style={styles.name} numberOfLines={1}>{m3uChannel.name}</Text>
       {nowNext.now && (

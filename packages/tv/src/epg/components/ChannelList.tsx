@@ -7,9 +7,10 @@ interface Props {
   entries: ChannelEntry[];
   selectedUrl: string | null;
   onSelect: (entry: ChannelEntry) => void;
+  onLongPress?: (entry: ChannelEntry) => void;
 }
 
-export function ChannelList({ entries, selectedUrl, onSelect }: Props): React.ReactElement {
+export function ChannelList({ entries, selectedUrl, onSelect, onLongPress }: Props): React.ReactElement {
   return (
     <View style={styles.container}>
       <FlatList
@@ -20,6 +21,7 @@ export function ChannelList({ entries, selectedUrl, onSelect }: Props): React.Re
             entry={item}
             isSelected={item.m3uChannel.url === selectedUrl}
             onSelect={() => onSelect(item)}
+            onLongPress={onLongPress ? () => onLongPress(item) : undefined}
           />
         )}
       />
@@ -28,5 +30,5 @@ export function ChannelList({ entries, selectedUrl, onSelect }: Props): React.Re
 }
 
 const styles = StyleSheet.create({
-  container: { width: 340, borderRightWidth: 1, borderRightColor: '#222' },
+  container: { flex: 1, borderRightWidth: 1, borderRightColor: '#222' },
 });
