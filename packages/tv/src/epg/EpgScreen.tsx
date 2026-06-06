@@ -4,6 +4,7 @@ import { type BufferProfile } from '@iptv-player/core';
 import { PlayerScreen } from '../ui/player/PlayerScreen';
 import { useSettings } from '../settings/useSettings';
 import { ChannelList } from './components/ChannelList';
+import { CategoryList } from './components/CategoryList';
 import { ChannelContextMenu } from './components/ChannelContextMenu';
 import { ChannelTabs } from './components/ChannelTabs';
 import { EpgGrid } from './components/EpgGrid';
@@ -97,6 +98,13 @@ export function EpgScreen({ m3uUrl, xmltvUrl, bufferProfile }: Props): React.Rea
               No favourites yet.{'\n'}Long-press a channel{'\n'}to add it to Favourites.
             </Text>
           </View>
+        ) : activeTab === 'categories' ? (
+          <CategoryList
+            entries={displayChannels}
+            selectedUrl={null}
+            onSelect={handleSelect}
+            onLongPress={entry => setContextEntry(entry)}
+          />
         ) : (
           <ChannelList
             entries={displayChannels}
