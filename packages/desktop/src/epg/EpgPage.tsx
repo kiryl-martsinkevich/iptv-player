@@ -5,6 +5,7 @@ import type { ChannelEntry } from './types';
 import { ChannelList } from './components/ChannelList';
 import { EpgGrid } from './components/EpgGrid';
 import { useEpgData } from './useEpgData';
+import { usePrefetch } from './usePrefetch';
 
 interface Props {
   m3uUrl: string;
@@ -15,15 +16,15 @@ export function EpgPage({ m3uUrl, xmltvUrl }: Props): React.ReactElement {
   const { channels, status, error } = useEpgData(m3uUrl, xmltvUrl);
   const { controller, VideoComponent } = useHlsJsController();
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
+  const { prefetch } = usePrefetch(true, 2);
 
   const handleSelect = (entry: ChannelEntry) => {
     setActiveUrl(entry.m3uChannel.url);
-    controller.load(entry.m3uChannel.url, { kind: 'aggressive' });
+    controller.load(entry.m3uChannel.url, { kind: 'aggressive' }, { stallTimeoutSec: 8, retryMaxDelayMs: 30_000 });
   };
 
   return (
     <div style={{ display: 'flex', height: '100%', background: '#111', overflow: 'hidden' }}>
-      {/* Left sidebar: channel list */}
       {status === 'loading' ? (
         <div style={{ width: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: 13 }}>
           Loading…
@@ -33,18 +34,15 @@ export function EpgPage({ m3uUrl, xmltvUrl }: Props): React.ReactElement {
           {error}
         </div>
       ) : (
-        <ChannelList entries={channels} activeUrl={activeUrl} onSelect={handleSelect} />
+        <ChannelList entries={channels} activeUrl={activeUrl} onSelect={handleSelect} onFocus={entry => prefetch(entry.m3uChannel.url)} />
       )}
 
-      {/* Right area: player + grid */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        {/* Player */}
         <div style={{ position: 'relative', height: '55%', flexShrink: 0, background: '#000' }}>
           {VideoComponent}
           <BufferHealthBadge status={controller.status} />
         </div>
 
-        {/* EPG grid */}
         <div style={{ flex: 1, overflowY: 'auto', borderTop: '1px solid #222' }}>
           <EpgGrid entries={channels} />
         </div>

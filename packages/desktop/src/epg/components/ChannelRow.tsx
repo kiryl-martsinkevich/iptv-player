@@ -5,13 +5,15 @@ interface Props {
   entry: ChannelEntry;
   isActive: boolean;
   onClick: () => void;
+  onMouseEnter?: () => void;
 }
 
-export function ChannelRow({ entry, isActive, onClick }: Props): React.ReactElement {
+export function ChannelRow({ entry, isActive, onClick, onMouseEnter }: Props): React.ReactElement {
   const { m3uChannel, nowNext } = entry;
   return (
     <div
       onClick={onClick}
+      onMouseEnter={onMouseEnter}
       style={{
         padding: '10px 14px',
         borderBottom: '1px solid #222',
