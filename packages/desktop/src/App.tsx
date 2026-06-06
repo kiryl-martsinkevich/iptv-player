@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { EpgPage } from './epg/EpgPage';
 import { useSettings } from './settings/useSettings';
 import { SettingsPanel } from './settings/SettingsPanel';
@@ -8,6 +8,13 @@ export function App(): React.ReactElement {
   const [showSettings, setShowSettings] = useState(false);
   const [m3uInput, setM3uInput] = useState(settings.m3uUrl);
   const [xmltvInput, setXmltvInput] = useState(settings.xmltvUrl);
+
+  useEffect(() => {
+    if (!settings.m3uUrl) {
+      setM3uInput('');
+      setXmltvInput('');
+    }
+  }, [settings.m3uUrl]);
 
   if (settings.m3uUrl) {
     return (
