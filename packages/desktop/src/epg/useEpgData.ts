@@ -1,13 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
-
-// In plain-browser dev (no Tauri), route through the local CORS proxy.
-// Tauri injects window.__TAURI__ at runtime; native fetch bypasses CORS.
-function proxyUrl(url: string): string {
-  if (typeof window !== 'undefined' && !('__TAURI__' in window)) {
-    return `/__proxy__/${url}`;
-  }
-  return url;
-}
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   buildEpgMapping,
   getNowNext,
@@ -16,6 +7,14 @@ import {
   type XmltvResult,
 } from '@iptv-player/core';
 import type { ChannelEntry } from './types';
+
+// In plain-browser dev (no Tauri), route through the local CORS proxy.
+function proxyUrl(url: string): string {
+  if (typeof window !== 'undefined' && !('__TAURI__' in window)) {
+    return `/__proxy__/${url}`;
+  }
+  return url;
+}
 
 type Status = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -28,9 +27,34 @@ interface WorkerResponse {
 export interface UseEpgDataResult {
   channels: ChannelEntry[];
   epgData: EpgData | null;
+  epgMapping: Map<string, string> | null;
   status: Status;
   error: string | null;
   reload: () => void;
+}
+
+/**
+ * Compute Now/Next and programmes for a single channel entry from raw EPG data.
+ * Called lazily by the page for visible channels only.
+ */
+export function enrichEntry(
+  entry: ChannelEntry,
+  epgData: EpgData | null,
+  mapping: Map<string, string> | null,
+): ChannelEntry {
+  if (!epgData || !mapping) return entry;
+  const epgId = mapping.get(entry.m3uChannel.url);
+  if (!epgId) return entry;
+  const now = new Date();
+  const progs = epgData.programmes
+    .filter(p => p.channelId === epgId)
+    .sort((a, b) => a.start.getTime() - b.start.getTime());
+  return {
+    ...entry,
+    epgChannelId: epgId,
+    nowNext: getNowNext(epgData.programmes, epgId, now),
+    programs: progs,
+  };
 }
 
 export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
@@ -39,6 +63,7 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
+  const epgMappingRef = useRef<Map<string, string> | null>(null);
 
   const reload = useCallback(() => setTick(t => t + 1), []);
 
@@ -68,6 +93,16 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
         if (cancelled) return;
         const m3uChannels = parseM3u(m3uText);
 
+        // Phase 1: structural entries immediately — no EPG yet
+        const structural: ChannelEntry[] = m3uChannels.map(ch => ({
+          m3uChannel: ch,
+          epgChannelId: undefined,
+          nowNext: {},
+          programs: [],
+        }));
+        setChannels(structural);
+        setStatus('ready');
+
         if (xmltvText) {
           worker = new Worker(new URL('./workers/XmltvWorker.ts', import.meta.url), { type: 'module' });
           worker.onmessage = (e: MessageEvent<WorkerResponse>) => {
@@ -87,25 +122,8 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
               })),
               programmes: xmltvResult.programmes,
             };
-            const mapping = buildEpgMapping(m3uChannels, data.channels);
-            const now = new Date();
-            const entries: ChannelEntry[] = m3uChannels.map(ch => {
-              const epgId = mapping.get(ch.url);
-              const progs = epgId
-                ? data.programmes
-                    .filter(p => p.channelId === epgId)
-                    .sort((a, b) => a.start.getTime() - b.start.getTime())
-                : [];
-              return {
-                m3uChannel: ch,
-                epgChannelId: epgId,
-                nowNext: epgId ? getNowNext(data.programmes, epgId, now) : {},
-                programs: progs,
-              };
-            });
+            epgMappingRef.current = buildEpgMapping(m3uChannels, data.channels);
             setEpgData(data);
-            setChannels(entries);
-            setStatus('ready');
           };
           worker.onerror = () => {
             if (cancelled) return;
@@ -114,16 +132,6 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
             worker?.terminate();
           };
           worker.postMessage({ xmltvText });
-        } else {
-          const entries: ChannelEntry[] = m3uChannels.map(ch => ({
-            m3uChannel: ch,
-            epgChannelId: undefined,
-            nowNext: {},
-            programs: [],
-          }));
-          setChannels(entries);
-          setEpgData(null);
-          setStatus('ready');
         }
       } catch (err) {
         if (!cancelled) {
@@ -140,5 +148,5 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
     };
   }, [m3uUrl, xmltvUrl, tick]);
 
-  return { channels, epgData, status, error, reload };
+  return { channels, epgData, epgMapping: epgMappingRef.current, status, error, reload };
 }
