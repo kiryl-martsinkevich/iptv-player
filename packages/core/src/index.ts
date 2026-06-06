@@ -32,3 +32,7 @@ export { toPlatformParams } from './playback/bufferProfile';
 
 export type { ResilienceConfig } from './playback/resilienceConfig';
 export { getRetryDelay } from './playback/resilienceConfig';
+
+// Settings
+export type { AppSettings } from './settings/appSettings';
+export { DEFAULT_SETTINGS, mergeSettings } from './settings/appSettings';
