@@ -113,18 +113,20 @@ export function useRnVideoController(): {
     if (!state.url) return;
     const stallTimeoutSec = state.resilienceConfig.stallTimeoutSec ?? 8;
     lastProgressWallRef.current = Date.now();
+    lastProgressPosRef.current = 0;
 
     const timer = setInterval(() => {
       if (stateRef.current.status.kind !== 'playing') return;
       const elapsedSec = (Date.now() - lastProgressWallRef.current) / 1_000;
       if (elapsedSec > stallTimeoutSec) {
+        dispatch({ type: 'SET_STATUS', status: { kind: 'buffering', bufferPercent: 0 } });
         videoRef.current?.seek(lastProgressPosRef.current / 1_000 + 0.1);
         lastProgressWallRef.current = Date.now(); // reset to avoid repeated seeks
       }
     }, 2_000);
 
     return () => clearInterval(timer);
-  }, [state.url, state.resilienceConfig]);
+  }, [state.url, state.resilienceConfig, state.retryTick]);
 
   const onBuffer = useCallback((data: OnBufferData) => {
     dispatch({
