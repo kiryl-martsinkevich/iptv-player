@@ -193,6 +193,7 @@ pnpm is installed at `~/.local/share/pnpm/bin/pnpm`. Add `export PNPM_HOME="$HOM
 | 6 — EPG UI | ✅ complete | useEpgData hook (TV: InteractionManager defer; Desktop: Vite module Worker), ChannelList + ChannelRow (Now/Next), EpgGrid (2-h window, 8 px/min, absolute cells), ProgramDetail modal/overlay, EpgScreen (TV) + EpgPage (Desktop), source input App.tsx on both platforms — typechecks + lint + 58 tests clean |
 | 7 — Slow-stream resilience | ✅ complete | ResilienceConfig (abrCapBps, bitrateLock, stallTimeoutSec, retryMaxDelayMs, prefetchEnabled); hls.js: ABR cap + level lock + stall watchdog + backoff retry; react-native-video: maxBitRate + selectedVideoTrack + stall watchdog + backoff retry; usePrefetch desktop hook (bandwidth-aware, AbortController body cancel, disabled by default) — 62 tests, typechecks + lint clean |
 | 8 — Settings UI | ✅ complete | AppSettings (m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled) + mergeSettings in core; desktop: localStorage useSettings + SettingsPanel (profile selector, prefetch toggle, source edit) + gear button; TV: AsyncStorage useSettings + SettingsModal (profile selector, source edit) + gear button; EpgPage/EpgScreen accept bufferProfile prop — 71 tests, typechecks + lint clean |
+| 9 — Channel navigation | ✅ complete | Favourites/Categories tabs, persistent search bar, right-click/long-press context menu (Play, ☆/★), favouriteUrls persistence in AppSettings, lazy EPG Now/Next via enrichEntry, collapsed categories on desktop — 74 tests, typechecks + lint clean |
 
 ---
 
