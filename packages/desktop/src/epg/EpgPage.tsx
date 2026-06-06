@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { type BufferProfile } from '@iptv-player/core';
 import { useHlsJsController } from '../playback/HlsJsController';
 import { BufferHealthBadge } from '../ui/player/BufferHealthBadge';
 import type { ChannelEntry } from './types';
@@ -10,17 +11,19 @@ import { usePrefetch } from './usePrefetch';
 interface Props {
   m3uUrl: string;
   xmltvUrl: string;
+  bufferProfile: BufferProfile;
+  prefetchEnabled: boolean;
 }
 
-export function EpgPage({ m3uUrl, xmltvUrl }: Props): React.ReactElement {
+export function EpgPage({ m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled }: Props): React.ReactElement {
   const { channels, status, error } = useEpgData(m3uUrl, xmltvUrl);
   const { controller, VideoComponent } = useHlsJsController();
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
-  const { prefetch } = usePrefetch(false, 2);
+  const { prefetch } = usePrefetch(prefetchEnabled, 2);
 
   const handleSelect = (entry: ChannelEntry) => {
     setActiveUrl(entry.m3uChannel.url);
-    controller.load(entry.m3uChannel.url, { kind: 'aggressive' }, { stallTimeoutSec: 8, retryMaxDelayMs: 30_000 });
+    controller.load(entry.m3uChannel.url, bufferProfile, { stallTimeoutSec: 8, retryMaxDelayMs: 30_000 });
   };
 
   return (
@@ -42,7 +45,6 @@ export function EpgPage({ m3uUrl, xmltvUrl }: Props): React.ReactElement {
           {VideoComponent}
           <BufferHealthBadge status={controller.status} />
         </div>
-
         <div style={{ flex: 1, overflowY: 'auto', borderTop: '1px solid #222' }}>
           <EpgGrid entries={channels} />
         </div>

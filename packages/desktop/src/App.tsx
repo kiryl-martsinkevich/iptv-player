@@ -1,18 +1,33 @@
 import React, { useState } from 'react';
 import { EpgPage } from './epg/EpgPage';
-
-interface Sources {
-  m3uUrl: string;
-  xmltvUrl: string;
-}
+import { useSettings } from './settings/useSettings';
+import { SettingsPanel } from './settings/SettingsPanel';
 
 export function App(): React.ReactElement {
-  const [sources, setSources] = useState<Sources | null>(null);
-  const [m3uInput, setM3uInput] = useState('');
-  const [xmltvInput, setXmltvInput] = useState('');
+  const { settings, updateSettings } = useSettings();
+  const [showSettings, setShowSettings] = useState(false);
+  const [m3uInput, setM3uInput] = useState(settings.m3uUrl);
+  const [xmltvInput, setXmltvInput] = useState(settings.xmltvUrl);
 
-  if (sources) {
-    return <EpgPage m3uUrl={sources.m3uUrl} xmltvUrl={sources.xmltvUrl} />;
+  if (settings.m3uUrl) {
+    return (
+      <>
+        <EpgPage
+          m3uUrl={settings.m3uUrl}
+          xmltvUrl={settings.xmltvUrl}
+          bufferProfile={settings.bufferProfile}
+          prefetchEnabled={settings.prefetchEnabled}
+        />
+        <button style={gearBtn} title="Settings" onClick={() => setShowSettings(true)}>⚙</button>
+        {showSettings && (
+          <SettingsPanel
+            settings={settings}
+            onSave={updateSettings}
+            onClose={() => setShowSettings(false)}
+          />
+        )}
+      </>
+    );
   }
 
   return (
@@ -39,7 +54,7 @@ export function App(): React.ReactElement {
       <button
         style={{ ...btn, ...(!m3uInput ? btnDisabled : {}) }}
         disabled={!m3uInput}
-        onClick={() => m3uInput && setSources({ m3uUrl: m3uInput, xmltvUrl: xmltvInput })}
+        onClick={() => m3uInput && updateSettings({ m3uUrl: m3uInput, xmltvUrl: xmltvInput })}
       >
         Load Channels
       </button>
@@ -49,7 +64,7 @@ export function App(): React.ReactElement {
 
 const splash: React.CSSProperties = {
   display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-  height: '100%', background: '#111', gap: 0,
+  height: '100%', background: '#111',
 };
 const heading: React.CSSProperties = { color: '#fff', fontSize: 36, fontWeight: 700, marginBottom: 32 };
 const field: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 20, width: 400 };
@@ -63,3 +78,9 @@ const btn: React.CSSProperties = {
   padding: '12px 32px', fontSize: 16, fontWeight: 600, cursor: 'pointer', marginTop: 8,
 };
 const btnDisabled: React.CSSProperties = { background: '#555', cursor: 'not-allowed' };
+const gearBtn: React.CSSProperties = {
+  position: 'fixed', bottom: 16, right: 16, background: 'rgba(0,0,0,0.6)',
+  border: '1px solid #444', borderRadius: '50%', width: 40, height: 40,
+  color: '#fff', fontSize: 18, cursor: 'pointer', display: 'flex',
+  alignItems: 'center', justifyContent: 'center', zIndex: 50,
+};
