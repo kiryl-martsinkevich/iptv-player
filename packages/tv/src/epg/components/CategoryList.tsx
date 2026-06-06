@@ -16,8 +16,6 @@ interface Props {
 }
 
 export function CategoryList({ entries, selectedUrl, onSelect, onLongPress }: Props): React.ReactElement {
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
-
   const sections: CategorySection[] = (() => {
     const map = new Map<string, ChannelEntry[]>();
     for (const e of entries) {
@@ -31,6 +29,8 @@ export function CategoryList({ entries, selectedUrl, onSelect, onLongPress }: Pr
     }
     return [...map.entries()].map(([title, data]) => ({ title, data }));
   })();
+
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(sections.map(s => s.title)));
 
   const toggleCollapse = (cat: string) => {
     setCollapsed(prev => {

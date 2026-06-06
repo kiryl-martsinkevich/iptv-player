@@ -180,7 +180,7 @@ function CategoryList({
   onFocus: (entry: ChannelEntry) => void;
   onContextMenu: (entry: ChannelEntry, e: React.MouseEvent) => void;
 }): React.ReactElement {
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(categories.keys()));
 
   const toggleCollapse = (cat: string) => {
     setCollapsed(prev => {
