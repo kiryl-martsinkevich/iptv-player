@@ -29,3 +29,6 @@ export type {
   Platform,
 } from './playback/bufferProfile';
 export { toPlatformParams } from './playback/bufferProfile';
+
+export type { ResilienceConfig } from './playback/resilienceConfig';
+export { getRetryDelay } from './playback/resilienceConfig';

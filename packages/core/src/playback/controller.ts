@@ -1,4 +1,5 @@
 import type { BufferProfile } from './bufferProfile';
+import type { ResilienceConfig } from './resilienceConfig';
 
 export type PlaybackStatus =
   | { kind: 'idle' }
@@ -14,7 +15,7 @@ export type PlaybackStatus =
  *   packages/desktop → HlsJsController    (hls.js + mpegts.js)
  */
 export interface PlaybackController {
-  load(url: string, bufferProfile: BufferProfile): void;
+  load(url: string, bufferProfile: BufferProfile, resilienceConfig?: ResilienceConfig): void;
   play(): void;
   pause(): void;
   seek(positionMs: number): void;
