@@ -192,7 +192,7 @@ pnpm is installed at `~/.local/share/pnpm/bin/pnpm`. Add `export PNPM_HOME="$HOM
 | 5 — Desktop platform shell | ✅ complete | Vite 5 + @tauri-apps/api (Tauri native shell deferred to Rust setup); hls.js 1.6.16 (HLS) + mpegts.js 1.7.3 (raw TS); useHlsJsController hook, URL-based stream detection, HlsBufferParams → hls.js config, PlayerPage, BufferHealthBadge — typechecks clean |
 | 6 — EPG UI | ✅ complete | useEpgData hook (TV: InteractionManager defer; Desktop: Vite module Worker), ChannelList + ChannelRow (Now/Next), EpgGrid (2-h window, 8 px/min, absolute cells), ProgramDetail modal/overlay, EpgScreen (TV) + EpgPage (Desktop), source input App.tsx on both platforms — typechecks + lint + 58 tests clean |
 | 7 — Slow-stream resilience | ✅ complete | ResilienceConfig (abrCapBps, bitrateLock, stallTimeoutSec, retryMaxDelayMs, prefetchEnabled); hls.js: ABR cap + level lock + stall watchdog + backoff retry; react-native-video: maxBitRate + selectedVideoTrack + stall watchdog + backoff retry; usePrefetch desktop hook (bandwidth-aware, AbortController body cancel, disabled by default) — 62 tests, typechecks + lint clean |
-| 8 — Settings UI | pending | Buffer profile selector, source management |
+| 8 — Settings UI | ✅ complete | AppSettings (m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled) + mergeSettings in core; desktop: localStorage useSettings + SettingsPanel (profile selector, prefetch toggle, source edit) + gear button; TV: AsyncStorage useSettings + SettingsModal (profile selector, source edit) + gear button; EpgPage/EpgScreen accept bufferProfile prop — 71 tests, typechecks + lint clean |
 
 ---
 

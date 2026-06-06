@@ -16,7 +16,9 @@ function load(): AppSettings {
 function save(settings: AppSettings): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  } catch {}
+  } catch {
+    // localStorage may be unavailable (e.g. private browsing quota exceeded); ignore
+  }
 }
 
 export function useSettings(): {
