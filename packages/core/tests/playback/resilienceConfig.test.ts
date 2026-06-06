@@ -9,6 +9,7 @@ describe('getRetryDelay', () => {
     expect(getRetryDelay(1)).toBe(2_000);
     expect(getRetryDelay(2)).toBe(4_000);
     expect(getRetryDelay(3)).toBe(8_000);
+    expect(getRetryDelay(4)).toBe(16_000);
   });
 
   it('caps at 30 s by default', () => {

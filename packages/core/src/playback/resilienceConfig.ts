@@ -15,5 +15,5 @@ export interface ResilienceConfig {
 
 /** Exponential backoff: 1 s, 2 s, 4 s … capped at maxDelayMs (default 30 s). */
 export function getRetryDelay(retryCount: number, maxDelayMs = 30_000): number {
-  return Math.min(1_000 * Math.pow(2, retryCount), maxDelayMs);
+  return Math.min(1_000 * Math.pow(2, Math.max(0, retryCount)), maxDelayMs);
 }
