@@ -21,3 +21,4 @@ packages/tv/ios/build/
 *.log
 .env
 .env.local
+coverage/
