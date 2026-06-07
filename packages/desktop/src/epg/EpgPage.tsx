@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { type BufferProfile } from '@iptv-player/core';
 import { useHlsJsController } from '../playback/HlsJsController';
 import { BufferHealthBadge } from '../ui/player/BufferHealthBadge';
@@ -35,7 +35,7 @@ function groupByCategory(entries: ChannelEntry[]): Map<string, ChannelEntry[]> {
 }
 
 export function EpgPage({ m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled }: Props): React.ReactElement {
-  const { channels, epgData, epgMapping, status, error } = useEpgData(m3uUrl, xmltvUrl);
+  const { channels, epgData, epgMapping, status, error, refreshing } = useEpgData(m3uUrl, xmltvUrl);
   const { settings, updateSettings } = useSettings();
   const { controller, VideoComponent } = useHlsJsController();
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
@@ -69,6 +69,55 @@ export function EpgPage({ m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled }: Pr
     return groupByCategory(displayChannels);
   }, [activeTab, displayChannels]);
 
+  // Category collapse state — lifted so EpgGrid can filter to expanded categories
+  const [collapsed, setCollapsed] = useState<Set<string>>(() => {
+    if (!categories) return new Set();
+    return new Set(categories.keys());
+  });
+
+  // Reset collapsed when categories change (tab switch, search, reload)
+  const categoriesKey = useMemo(() => {
+    if (!categories) return '';
+    return [...categories.keys()].join('|');
+  }, [categories]);
+
+  // Sync collapsed when category set changes (tab switch, search, reload)
+  useEffect(() => {
+    if (!categories) return;
+    setCollapsed(new Set(categories.keys()));
+  }, [categories, categoriesKey]);
+
+  const toggleCollapse = (cat: string) => {
+    setCollapsed(prev => {
+      const next = new Set(prev);
+      if (next.has(cat)) next.delete(cat);
+      else next.add(cat);
+      return next;
+    });
+  };
+
+  // EPG grid shows only channels from expanded categories (or selected channel)
+  const gridChannels = useMemo(() => {
+    if (activeUrl) {
+      // Show only the playing channel's timeline
+      return displayChannels.filter(c => c.m3uChannel.url === activeUrl);
+    }
+    if (activeTab === 'categories' && categories) {
+      // Show only channels from expanded categories
+      const visibleUrls = new Set<string>();
+      for (const [cat, entries] of categories) {
+        if (!collapsed.has(cat)) {
+          for (const e of entries) {
+            visibleUrls.add(e.m3uChannel.url);
+          }
+        }
+      }
+      return displayChannels.filter(c => visibleUrls.has(c.m3uChannel.url));
+    }
+    // Favourites tab: show all (they're all visible)
+    return displayChannels;
+  }, [displayChannels, activeUrl, activeTab, categories, collapsed]);
+
   const handleSelect = (entry: ChannelEntry) => {
     setActiveUrl(entry.m3uChannel.url);
     controller.load(entry.m3uChannel.url, bufferProfile, { stallTimeoutSec: 8, retryMaxDelayMs: 30_000 });
@@ -99,6 +148,12 @@ export function EpgPage({ m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled }: Pr
     lineHeight: 1.5,
   };
 
+  const refreshBar: React.CSSProperties = {
+    height: 2,
+    background: refreshing ? '#e50914' : 'transparent',
+    transition: 'background 0.3s',
+  };
+
   return (
     <div style={{ display: 'flex', height: '100%', background: '#111', overflow: 'hidden' }}>
       {status === 'loading' ? (
@@ -118,6 +173,7 @@ export function EpgPage({ m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled }: Pr
             onSearchChange={setSearchQuery}
             favouriteCount={settings.favouriteUrls.length}
           />
+          <div style={refreshBar} title={refreshing ? 'Refreshing…' : undefined} />
           {activeTab === 'favourites' && displayChannels.length === 0 ? (
             <div style={emptyHint}>
               No favourites yet.<br />Right-click a channel<br />to add it to Favourites.
@@ -126,6 +182,8 @@ export function EpgPage({ m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled }: Pr
             <CategoryList
               categories={categories}
               activeUrl={activeUrl}
+              collapsed={collapsed}
+              onToggleCollapse={toggleCollapse}
               onSelect={handleSelect}
               onFocus={entry => prefetch(entry.m3uChannel.url)}
               onContextMenu={(entry, e) => setContextMenu({ entry, x: e.clientX, y: e.clientY })}
@@ -167,7 +225,7 @@ export function EpgPage({ m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled }: Pr
           </div>
         </div>
         <div style={{ flex: 1, overflowY: 'auto', borderTop: '1px solid #222' }}>
-          <EpgGrid entries={displayChannels} selectedUrl={activeUrl} />
+          <EpgGrid entries={gridChannels} />
         </div>
       </div>
 
@@ -190,27 +248,20 @@ export function EpgPage({ m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled }: Pr
 function CategoryList({
   categories,
   activeUrl,
+  collapsed,
+  onToggleCollapse,
   onSelect,
   onFocus,
   onContextMenu,
 }: {
   categories: Map<string, ChannelEntry[]>;
   activeUrl: string | null;
+  collapsed: Set<string>;
+  onToggleCollapse: (cat: string) => void;
   onSelect: (entry: ChannelEntry) => void;
   onFocus: (entry: ChannelEntry) => void;
   onContextMenu: (entry: ChannelEntry, e: React.MouseEvent) => void;
 }): React.ReactElement {
-  const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set(categories.keys()));
-
-  const toggleCollapse = (cat: string) => {
-    setCollapsed(prev => {
-      const next = new Set(prev);
-      if (next.has(cat)) next.delete(cat);
-      else next.add(cat);
-      return next;
-    });
-  };
-
   const catHeader: React.CSSProperties = {
     padding: '8px 14px',
     background: '#222',
@@ -228,7 +279,7 @@ function CategoryList({
     <div style={{ flex: 1, overflowY: 'auto' }}>
       {[...categories.entries()].map(([cat, entries]) => (
         <div key={cat}>
-          <div style={catHeader} onClick={() => toggleCollapse(cat)}>
+          <div style={catHeader} onClick={() => onToggleCollapse(cat)}>
             <span>{cat}</span>
             <span style={{ color: '#666' }}>{entries.length}</span>
           </div>

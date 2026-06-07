@@ -7,6 +7,7 @@ import {
   type XmltvResult,
 } from '@iptv-player/core';
 import type { ChannelEntry } from './types';
+import { loadFromCache, restoreEpgData, saveToCache } from './epgCache';
 
 // In plain-browser dev (no Tauri), route through the local CORS proxy.
 function proxyUrl(url: string): string {
@@ -31,11 +32,21 @@ export interface UseEpgDataResult {
   status: Status;
   error: string | null;
   reload: () => void;
+  refreshing: boolean;
+}
+
+function structuralEntries(raw: ReturnType<typeof parseM3u>): ChannelEntry[] {
+  return raw.map(ch => ({
+    m3uChannel: ch,
+    epgChannelId: undefined,
+    nowNext: {},
+    programs: [],
+  }));
 }
 
 /**
  * Compute Now/Next and programmes for a single channel entry from raw EPG data.
- * Called lazily by the page for visible channels only.
+ * Called lazily by EpgPage for visible channels only.
  */
 export function enrichEntry(
   entry: ChannelEntry,
@@ -62,6 +73,7 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
   const [epgData, setEpgData] = useState<EpgData | null>(null);
   const [status, setStatus] = useState<Status>('idle');
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const [tick, setTick] = useState(0);
   const epgMappingRef = useRef<Map<string, string> | null>(null);
 
@@ -72,8 +84,25 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
 
     let cancelled = false;
     let worker: Worker | null = null;
-    setStatus('loading');
-    setError(null);
+
+    // Phase 0: try cache first for instant display
+    const cached = loadFromCache(m3uUrl);
+    if (cached && tick === 0) {
+      // tick === 0: initial mount. On explicit reload (tick > 0), skip cache.
+      const restoredEpg = restoreEpgData(cached);
+      epgMappingRef.current = restoredEpg
+        ? buildEpgMapping(cached.m3uChannels, restoredEpg.channels)
+        : null;
+      setChannels(structuralEntries(cached.m3uChannels));
+      if (restoredEpg) setEpgData(restoredEpg);
+      setStatus('ready');
+
+      // Now refresh from network in background
+      setRefreshing(true);
+    } else {
+      setStatus('loading');
+      setError(null);
+    }
 
     const run = async () => {
       try {
@@ -91,17 +120,19 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
         ]);
 
         if (cancelled) return;
+
+        // Parse M3U — typically fast enough for main thread, but if there was
+        // a cache hit the UI is already interactive so this is non-blocking.
         const m3uChannels = parseM3u(m3uText);
 
-        // Phase 1: structural entries immediately — no EPG yet
-        const structural: ChannelEntry[] = m3uChannels.map(ch => ({
-          m3uChannel: ch,
-          epgChannelId: undefined,
-          nowNext: {},
-          programs: [],
-        }));
-        setChannels(structural);
-        setStatus('ready');
+        // Phase 1: structural entries immediately
+        setChannels(structuralEntries(m3uChannels));
+        if (cached) {
+          // Already had cached data; just updating. Stay 'ready'.
+          setRefreshing(true);
+        } else {
+          setStatus('ready');
+        }
 
         if (xmltvText) {
           worker = new Worker(new URL('./workers/XmltvWorker.ts', import.meta.url), { type: 'module' });
@@ -109,8 +140,11 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
             if (cancelled) return;
             worker?.terminate();
             if (!e.data.ok || !e.data.result) {
-              setError(e.data.error ?? 'XMLTV parse error');
-              setStatus('error');
+              if (!cached) {
+                setError(e.data.error ?? 'XMLTV parse error');
+                setStatus('error');
+              }
+              setRefreshing(false);
               return;
             }
             const xmltvResult = e.data.result;
@@ -124,19 +158,33 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
             };
             epgMappingRef.current = buildEpgMapping(m3uChannels, data.channels);
             setEpgData(data);
+            setRefreshing(false);
+
+            // Persist to cache for next launch
+            saveToCache(m3uUrl, m3uChannels, data);
           };
           worker.onerror = () => {
             if (cancelled) return;
-            setError('Worker error during XMLTV parse');
-            setStatus('error');
+            if (!cached) {
+              setError('Worker error during XMLTV parse');
+              setStatus('error');
+            }
+            setRefreshing(false);
             worker?.terminate();
           };
           worker.postMessage({ xmltvText });
+        } else {
+          setRefreshing(false);
+          // No XMLTV — still cache the M3U channels
+          saveToCache(m3uUrl, m3uChannels, null);
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Load error');
-          setStatus('error');
+          if (!cached) {
+            setError(err instanceof Error ? err.message : 'Load error');
+            setStatus('error');
+          }
+          setRefreshing(false);
         }
       }
     };
@@ -148,5 +196,5 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
     };
   }, [m3uUrl, xmltvUrl, tick]);
 
-  return { channels, epgData, epgMapping: epgMappingRef.current, status, error, reload };
+  return { channels, epgData, epgMapping: epgMappingRef.current, status, error, reload, refreshing };
 }
