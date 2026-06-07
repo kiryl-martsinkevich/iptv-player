@@ -52,4 +52,39 @@ describe('buildEpgMapping', () => {
     const channels = [{ url: 'http://s.com/1.m3u8', name: 'CNN' }];
     expect(buildEpgMapping(channels, []).size).toBe(0);
   });
+
+  it('picks the closest fuzzy match when multiple epg channels are within threshold', () => {
+    const epg = [
+      { id: 'espn-hd', displayName: 'ESPN HD Extra' },
+      { id: 'espn', displayName: 'ESPN' },
+    ];
+    // "ESPN" fuzzy matches both: distance to "ESPN" = 0, to "ESPN HD Extra" = 8
+    const channels = [{ url: 'http://s.com/espn.m3u8', name: 'ESPN' }];
+    const m = buildEpgMapping(channels, epg);
+    // Should pick exact name match "ESPN" (distance 0) over fuzzy match
+    expect(m.get('http://s.com/espn.m3u8')).toBe('espn');
+  });
+
+  it('fuzzy matches work with edit distance exactly at threshold 2', () => {
+    const epg = [{ id: 'abc', displayName: 'ABC Network' }];
+    // "ABC Netwrok" → "ABC Network": swap 'o'/'r' distance = 2
+    const channels = [{ url: 'http://s.com/abc.m3u8', name: 'ABC Netwrok' }];
+    const m = buildEpgMapping(channels, epg);
+    expect(m.get('http://s.com/abc.m3u8')).toBe('abc');
+  });
+
+  it('fuzzy match ignores punctuation and whitespace', () => {
+    const epg = [{ id: 'nbc', displayName: 'NBC' }];
+    const channels = [{ url: 'http://s.com/nbc.m3u8', name: 'N.B.C.' }];
+    const m = buildEpgMapping(channels, epg);
+    // normalizeName strips punctuation: "N.B.C." → "nbc"
+    expect(m.get('http://s.com/nbc.m3u8')).toBe('nbc');
+  });
+
+  it('identical names short-circuit levenshtein', () => {
+    const epg = [{ id: 'same', displayName: 'Same Name' }];
+    const channels = [{ url: 'http://s.com/same.m3u8', name: 'Same Name' }];
+    const m = buildEpgMapping(channels, epg);
+    expect(m.get('http://s.com/same.m3u8')).toBe('same');
+  });
 });

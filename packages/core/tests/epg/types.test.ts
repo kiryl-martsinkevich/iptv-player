@@ -34,6 +34,13 @@ describe('getNowNext', () => {
     expect(next).toBeUndefined();
   });
 
+  it('uses current time when no date is passed', () => {
+    const { now, next } = getNowNext(PROGS, 'ch1'); // default now = new Date()
+    // PROGS dates are in 2024, so nothing is currently airing
+    expect(now).toBeUndefined();
+    expect(next).toBeUndefined();
+  });
+
   it('returns empty NowNext for unknown channel', () => {
     const { now, next } = getNowNext(PROGS, 'unknown', new Date('2024-06-01T10:30:00Z'));
     expect(now).toBeUndefined();

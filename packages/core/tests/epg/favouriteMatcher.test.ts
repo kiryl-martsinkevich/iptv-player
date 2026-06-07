@@ -101,6 +101,17 @@ describe('matchFavouriteUrls', () => {
     expect(result.has('http://example.com/espn.m3u8')).toBe(true);
   });
 
+  it('handles favNames shorter than favUrls (missing name = undefined)', () => {
+    const result = matchFavouriteUrls(
+      ['http://example.com/espn.m3u8'],
+      [], // empty names array — favName will be undefined → ''
+      CHANNELS,
+    );
+    // URL exists so it should match by exact URL regardless
+    expect(result.has('http://example.com/espn.m3u8')).toBe(true);
+    expect(result.size).toBe(1);
+  });
+
   it('handles duplicate names by picking the first channel match', () => {
     const dupChannels: M3uChannel[] = [
       { url: 'http://example.com/espn-hd.m3u8', name: 'ESPN' },

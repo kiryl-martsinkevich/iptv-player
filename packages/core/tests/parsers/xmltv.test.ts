@@ -80,6 +80,12 @@ describe('parseXmltv — date parsing', () => {
     expect(programmes[0].start).toEqual(new Date('2024-06-01T17:00:00Z'));
   });
 
+  it('throws on invalid date format', () => {
+    expect(() =>
+      parseXmltv(makeProg('not-a-date', '20240601130000')),
+    ).toThrow('Invalid XMLTV date');
+  });
+
   it('handles bare UTC timestamps without offset', () => {
     const { programmes } = parseXmltv(makeProg('20240601120000', '20240601130000'));
     expect(programmes[0].start).toEqual(new Date('2024-06-01T12:00:00Z'));
@@ -87,6 +93,31 @@ describe('parseXmltv — date parsing', () => {
 });
 
 describe('parseXmltv — edge cases', () => {
+  it('handles title as a nested #text object', () => {
+    const xml = `<tv>
+      <channel id="x"><display-name>X</display-name></channel>
+      <programme start="20240601120000 +0000" stop="20240601130000 +0000" channel="x">
+        <title lang="en">English Title</title>
+      </programme>
+    </tv>`;
+    const { programmes } = parseXmltv(xml);
+    // fast-xml-parser turns <title lang="en">Text</title> into
+    // { @_lang: "en", #text: "Text" } — textContent must extract #text
+    expect(programmes[0].title).toBe('English Title');
+  });
+
+  it('handles numeric programme descriptions', () => {
+    const xml = `<tv>
+      <channel id="x"><display-name>X</display-name></channel>
+      <programme start="20240601120000 +0000" stop="20240601130000 +0000" channel="x">
+        <title>Test</title>
+        <desc>2024</desc>
+      </programme>
+    </tv>`;
+    const { programmes } = parseXmltv(xml);
+    expect(programmes[0].description).toBe('2024');
+  });
+
   it('returns empty results for empty tv element', () => {
     const { channels, programmes } = parseXmltv('<tv></tv>');
     expect(channels).toHaveLength(0);

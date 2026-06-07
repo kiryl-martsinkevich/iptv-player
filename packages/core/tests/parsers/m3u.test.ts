@@ -65,6 +65,13 @@ describe('parseM3u', () => {
     expect(parseM3u('#EXTM3U')).toHaveLength(0);
   });
 
+  it('handles EXTINF line with no comma (empty name)', () => {
+    const noComma = '#EXTM3U\n#EXTINF:-1\nhttp://example.com/stream';
+    const [ch] = parseM3u(noComma);
+    expect(ch.name).toBe('');
+    expect(ch.url).toBe('http://example.com/stream');
+  });
+
   it('handles CRLF line endings', () => {
     const crlf = '#EXTM3U\r\n#EXTINF:-1,Chan\r\nhttp://url.com\r\n';
     expect(parseM3u(crlf)).toHaveLength(1);
