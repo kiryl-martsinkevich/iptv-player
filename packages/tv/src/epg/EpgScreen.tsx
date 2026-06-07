@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { type BufferProfile } from '@iptv-player/core';
 import { PlayerScreen } from '../ui/player/PlayerScreen';
@@ -24,7 +24,16 @@ export function EpgScreen({ m3uUrl, xmltvUrl, bufferProfile }: Props): React.Rea
   const { settings, updateSettings } = useSettings();
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('favourites');
+  const [searchInput, setSearchInput] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const onSearchChange = (value: string) => {
+    setSearchInput(value);
+    clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => setSearchQuery(value), 200);
+  };
+  useEffect(() => () => clearTimeout(searchTimerRef.current), []);
+
   const [contextEntry, setContextEntry] = useState<ChannelEntry | null>(null);
 
   const favourites = useMemo(() => new Set(settings.favouriteUrls), [settings.favouriteUrls]);
@@ -88,8 +97,8 @@ export function EpgScreen({ m3uUrl, xmltvUrl, bufferProfile }: Props): React.Rea
         <ChannelTabs
           activeTab={activeTab}
           onTabChange={setActiveTab}
-          searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
+          searchQuery={searchInput}
+          onSearchChange={onSearchChange}
           favouriteCount={settings.favouriteUrls.length}
         />
         {activeTab === 'favourites' && displayChannels.length === 0 ? (

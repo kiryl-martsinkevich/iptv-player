@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { type BufferProfile } from '@iptv-player/core';
 import { useHlsJsController } from '../playback/HlsJsController';
 import { BufferHealthBadge } from '../ui/player/BufferHealthBadge';
@@ -40,7 +40,19 @@ export function EpgPage({ m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled }: Pr
   const { controller, VideoComponent } = useHlsJsController();
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('favourites');
+  const [searchInput, setSearchInput] = useState('');
+  // Debounce the filter query so enrichment runs only after typing stops.
+  // The input field uses searchInput (instant feedback); filtering uses
+  // searchQuery (debounced) so keystrokes don't trigger 500+ enrichEntry calls.
   const [searchQuery, setSearchQuery] = useState('');
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const onSearchChange = (value: string) => {
+    setSearchInput(value);
+    clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => setSearchQuery(value), 200);
+  };
+  useEffect(() => () => clearTimeout(searchTimerRef.current), []);
+
   const [contextMenu, setContextMenu] = useState<{ entry: ChannelEntry; x: number; y: number } | null>(null);
   const [volume, setVolume] = useState(1);
   const { prefetch } = usePrefetch(prefetchEnabled, 2);
@@ -62,7 +74,7 @@ export function EpgPage({ m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled }: Pr
     }
 
     return filtered.map(e => enrichEntry(e, epgData, epgMapping, programmesById));
-  }, [channels, activeTab, searchQuery, favourites, epgData, epgMapping]);
+  }, [channels, activeTab, searchQuery, favourites, epgData, epgMapping, programmesById]);
 
   const categories = useMemo(() => {
     if (activeTab !== 'categories') return null;
@@ -169,8 +181,8 @@ export function EpgPage({ m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled }: Pr
           <ChannelTabs
             activeTab={activeTab}
             onTabChange={setActiveTab}
-            searchQuery={searchQuery}
-            onSearchChange={setSearchQuery}
+            searchQuery={searchInput}
+            onSearchChange={onSearchChange}
             favouriteCount={settings.favouriteUrls.length}
           />
           <div style={refreshBar} title={refreshing ? 'Refreshing…' : undefined} />
