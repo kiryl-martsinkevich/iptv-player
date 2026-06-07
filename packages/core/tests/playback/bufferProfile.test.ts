@@ -24,12 +24,12 @@ describe('toPlatformParams — aggressive profile', () => {
   it('web: exact hls.js buffer params', () => {
     const p = toPlatformParams({ kind: 'aggressive' }, 'web');
     expect(p).toEqual<HlsBufferParams>({
-      maxBufferLength: 120,
+      maxBufferLength: 240,
       maxMaxBufferLength: 600,
       backBufferLength: 30,
-      maxBufferSize: 200_000_000,
-      liveSyncDuration: 3,
-      liveMaxLatencyDuration: 10,
+      maxBufferSize: 400_000_000,
+      liveSyncDuration: 90,
+      liveMaxLatencyDuration: 300,
     });
   });
 });
@@ -49,7 +49,7 @@ describe('toPlatformParams — conservative profile', () => {
   it('web: smaller maxBufferLength and higher liveMaxLatencyDuration', () => {
     const p = toPlatformParams({ kind: 'conservative' }, 'web');
     expect(p.maxBufferLength).toBe(30);
-    expect(p.liveMaxLatencyDuration).toBe(20);
+    expect(p.liveMaxLatencyDuration).toBe(60);
   });
 });
 
@@ -83,7 +83,7 @@ describe('toPlatformParams — custom profile', () => {
       'web',
     );
     expect(p.maxBufferLength).toBe(200);
-    expect(p.maxMaxBufferLength).toBe(120); // balanced default
+    expect(p.maxMaxBufferLength).toBe(180); // balanced default
   });
 
   it('tvOS: uses balanced defaults when no avplayer override given', () => {

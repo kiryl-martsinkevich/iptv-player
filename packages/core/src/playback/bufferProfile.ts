@@ -46,17 +46,17 @@ const PRESETS: Record<
   conservative: {
     exo: { minBufferMs: 15_000, maxBufferMs: 30_000, bufferForPlaybackMs: 2_500, bufferForPlaybackAfterRebufferMs: 5_000 },
     avplayer: { preferredForwardBufferDuration: 30 },
-    hls: { maxBufferLength: 30, maxMaxBufferLength: 60, backBufferLength: 10, maxBufferSize: 50_000_000, liveSyncDuration: 5, liveMaxLatencyDuration: 20 },
+    hls: { maxBufferLength: 30, maxMaxBufferLength: 60, backBufferLength: 10, maxBufferSize: 50_000_000, liveSyncDuration: 30, liveMaxLatencyDuration: 60 },
   },
   balanced: {
     exo: { minBufferMs: 30_000, maxBufferMs: 60_000, bufferForPlaybackMs: 2_500, bufferForPlaybackAfterRebufferMs: 5_000 },
     avplayer: { preferredForwardBufferDuration: 60 },
-    hls: { maxBufferLength: 60, maxMaxBufferLength: 120, backBufferLength: 20, maxBufferSize: 100_000_000, liveSyncDuration: 3, liveMaxLatencyDuration: 15 },
+    hls: { maxBufferLength: 60, maxMaxBufferLength: 180, backBufferLength: 20, maxBufferSize: 100_000_000, liveSyncDuration: 45, liveMaxLatencyDuration: 120 },
   },
   aggressive: {
     exo: { minBufferMs: 50_000, maxBufferMs: 120_000, bufferForPlaybackMs: 2_500, bufferForPlaybackAfterRebufferMs: 5_000 },
     avplayer: { preferredForwardBufferDuration: 120 },
-    hls: { maxBufferLength: 120, maxMaxBufferLength: 600, backBufferLength: 30, maxBufferSize: 200_000_000, liveSyncDuration: 3, liveMaxLatencyDuration: 10 },
+    hls: { maxBufferLength: 240, maxMaxBufferLength: 600, backBufferLength: 30, maxBufferSize: 400_000_000, liveSyncDuration: 90, liveMaxLatencyDuration: 300 },
   },
 };
 

@@ -96,12 +96,16 @@ hls.js tuning (HLS streams):
 ```ts
 // Aggressive profile
 {
-  maxBufferLength: 120,         // s target buffer ahead
-  maxMaxBufferLength: 600,      // s absolute cap
-  backBufferLength: 30,         // s to keep behind playhead
-  maxBufferSize: 200 * 1000 * 1000,  // 200 MB
-  liveSyncDuration: 3,          // s behind live edge
-  liveMaxLatencyDuration: 10,
+  maxBufferLength: 240,              // s target buffer ahead (4 min)
+  maxMaxBufferLength: 600,           // s absolute cap
+  backBufferLength: 30,              // s to keep behind playhead
+  maxBufferSize: 400 * 1000 * 1000,  // 400 MB
+  liveSyncDuration: 90,              // s target latency behind live edge (must match buffer intent)
+  liveMaxLatencyDuration: 300,       // s max latency before seeking
+  maxBufferHole: 1,                  // s gap tolerated without stalling
+  maxFragLookUpTolerance: 0.5,       // 50% fragment variance tolerance
+  appendErrorMaxRetry: 3,            // retry append errors
+  highBufferWatchdogPeriod: 3,       // slow the high-buffer check
 }
 ```
 

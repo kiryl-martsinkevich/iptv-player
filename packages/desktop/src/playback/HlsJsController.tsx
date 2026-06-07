@@ -214,6 +214,14 @@ export function useHlsJsController(): {
         maxBufferSize: hlsParams.maxBufferSize,
         liveSyncDuration: hlsParams.liveSyncDuration,
         liveMaxLatencyDuration: hlsParams.liveMaxLatencyDuration,
+        // Buffer stability: skip gaps up to 1s without stalling
+        maxBufferHole: 1,
+        // Allow 50% fragment duration variance when scanning the buffer
+        maxFragLookUpTolerance: 0.5,
+        // Retry on segment append errors before giving up
+        appendErrorMaxRetry: 3,
+        // Check high-buffer watermark less aggressively (reduces nudging)
+        highBufferWatchdogPeriod: 3,
       });
 
       hls.loadSource(state.url);
