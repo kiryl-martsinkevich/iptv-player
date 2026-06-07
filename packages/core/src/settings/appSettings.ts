@@ -6,6 +6,9 @@ export interface AppSettings {
   bufferProfile: BufferProfile;
   prefetchEnabled: boolean;
   favouriteUrls: string[];
+  /** Channel names parallel to favouriteUrls — used for name-based
+   *  fallback matching when playlist URLs change between sessions. */
+  favouriteNames: string[];
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -14,6 +17,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   bufferProfile: { kind: 'aggressive' },
   prefetchEnabled: false,
   favouriteUrls: [],
+  favouriteNames: [],
 };
 
 export function mergeSettings(partial: Partial<AppSettings>): AppSettings {

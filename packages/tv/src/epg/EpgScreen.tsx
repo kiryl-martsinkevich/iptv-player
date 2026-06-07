@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { type BufferProfile } from '@iptv-player/core';
+import { matchFavouriteUrls, type BufferProfile } from '@iptv-player/core';
 import { PlayerScreen } from '../ui/player/PlayerScreen';
 import { useSettings } from '../settings/useSettings';
 import { ChannelList } from './components/ChannelList';
@@ -36,7 +36,10 @@ export function EpgScreen({ m3uUrl, xmltvUrl, bufferProfile }: Props): React.Rea
 
   const [contextEntry, setContextEntry] = useState<ChannelEntry | null>(null);
 
-  const favourites = useMemo(() => new Set(settings.favouriteUrls), [settings.favouriteUrls]);
+  const favourites = useMemo(
+    () => matchFavouriteUrls(settings.favouriteUrls, settings.favouriteNames, channels.map(c => c.m3uChannel)),
+    [settings.favouriteUrls, settings.favouriteNames, channels],
+  );
 
   const displayChannels = useMemo(() => {
     let filtered: ChannelEntry[];
@@ -58,10 +61,18 @@ export function EpgScreen({ m3uUrl, xmltvUrl, bufferProfile }: Props): React.Rea
 
   const toggleFavourite = (entry: ChannelEntry) => {
     const url = entry.m3uChannel.url;
-    const next = favourites.has(url)
-      ? settings.favouriteUrls.filter(u => u !== url)
-      : [...settings.favouriteUrls, url];
-    updateSettings({ favouriteUrls: next });
+    const name = entry.m3uChannel.name;
+    const idx = settings.favouriteUrls.indexOf(url);
+    if (idx >= 0) {
+      const urls = settings.favouriteUrls.filter((_, i) => i !== idx);
+      const names = settings.favouriteNames.filter((_, i) => i !== idx);
+      updateSettings({ favouriteUrls: urls, favouriteNames: names });
+    } else {
+      updateSettings({
+        favouriteUrls: [...settings.favouriteUrls, url],
+        favouriteNames: [...settings.favouriteNames, name],
+      });
+    }
   };
 
   if (activeUrl) {
@@ -99,7 +110,7 @@ export function EpgScreen({ m3uUrl, xmltvUrl, bufferProfile }: Props): React.Rea
           onTabChange={setActiveTab}
           searchQuery={searchInput}
           onSearchChange={onSearchChange}
-          favouriteCount={settings.favouriteUrls.length}
+          favouriteCount={favourites.size}
         />
         {activeTab === 'favourites' && displayChannels.length === 0 ? (
           <View style={styles.emptyHint}>

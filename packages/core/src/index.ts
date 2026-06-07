@@ -14,6 +14,8 @@ export { getNowNext } from './epg/types';
 
 export { buildEpgMapping } from './epg/mapper';
 
+export { matchFavouriteUrls } from './epg/favouriteMatcher';
+
 export type { EpgSnapshot, SerializedProgramme } from './epg/cache';
 export { serializeEpg, deserializeEpg } from './epg/cache';
 

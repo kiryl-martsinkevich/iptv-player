@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { type BufferProfile } from '@iptv-player/core';
+import { matchFavouriteUrls, type BufferProfile } from '@iptv-player/core';
 import { useHlsJsController } from '../playback/HlsJsController';
 import { BufferHealthBadge } from '../ui/player/BufferHealthBadge';
 import { useSettings } from '../settings/useSettings';
@@ -57,7 +57,11 @@ export function EpgPage({ m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled }: Pr
   const [volume, setVolume] = useState(1);
   const { prefetch } = usePrefetch(prefetchEnabled, 2);
 
-  const favourites = useMemo(() => new Set(settings.favouriteUrls), [settings.favouriteUrls]);
+  // Match stored favourites to current M3U channels (URL exact match + name fallback)
+  const favourites = useMemo(
+    () => matchFavouriteUrls(settings.favouriteUrls, settings.favouriteNames, channels.map(c => c.m3uChannel)),
+    [settings.favouriteUrls, settings.favouriteNames, channels],
+  );
 
   // Enrich visible entries with Now/Next + programmes on demand.
   const displayChannels = useMemo(() => {
@@ -137,10 +141,20 @@ export function EpgPage({ m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled }: Pr
 
   const toggleFavourite = (entry: ChannelEntry) => {
     const url = entry.m3uChannel.url;
-    const next = favourites.has(url)
-      ? settings.favouriteUrls.filter(u => u !== url)
-      : [...settings.favouriteUrls, url];
-    updateSettings({ favouriteUrls: next });
+    const name = entry.m3uChannel.name;
+    const idx = settings.favouriteUrls.indexOf(url);
+    if (idx >= 0) {
+      // Remove
+      const urls = settings.favouriteUrls.filter((_, i) => i !== idx);
+      const names = settings.favouriteNames.filter((_, i) => i !== idx);
+      updateSettings({ favouriteUrls: urls, favouriteNames: names });
+    } else {
+      // Add — store both URL and name for cross-playlist matching
+      updateSettings({
+        favouriteUrls: [...settings.favouriteUrls, url],
+        favouriteNames: [...settings.favouriteNames, name],
+      });
+    }
   };
 
   const sidebarStyle: React.CSSProperties = {
@@ -183,7 +197,7 @@ export function EpgPage({ m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled }: Pr
             onTabChange={setActiveTab}
             searchQuery={searchInput}
             onSearchChange={onSearchChange}
-            favouriteCount={settings.favouriteUrls.length}
+            favouriteCount={favourites.size}
           />
           <div style={refreshBar} title={refreshing ? 'Refreshing…' : undefined} />
           {activeTab === 'favourites' && displayChannels.length === 0 ? (
