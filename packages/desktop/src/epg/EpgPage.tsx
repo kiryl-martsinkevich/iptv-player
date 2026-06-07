@@ -35,7 +35,7 @@ function groupByCategory(entries: ChannelEntry[]): Map<string, ChannelEntry[]> {
 }
 
 export function EpgPage({ m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled }: Props): React.ReactElement {
-  const { channels, epgData, epgMapping, status, error, refreshing } = useEpgData(m3uUrl, xmltvUrl);
+  const { channels, epgData, epgMapping, programmesById, status, error, refreshing } = useEpgData(m3uUrl, xmltvUrl);
   const { settings, updateSettings } = useSettings();
   const { controller, VideoComponent } = useHlsJsController();
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
@@ -61,7 +61,7 @@ export function EpgPage({ m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled }: Pr
       filtered = filtered.filter(c => c.m3uChannel.name.toLowerCase().includes(q));
     }
 
-    return filtered.map(e => enrichEntry(e, epgData, epgMapping));
+    return filtered.map(e => enrichEntry(e, epgData, epgMapping, programmesById));
   }, [channels, activeTab, searchQuery, favourites, epgData, epgMapping]);
 
   const categories = useMemo(() => {

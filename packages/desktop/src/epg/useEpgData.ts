@@ -4,6 +4,7 @@ import {
   getNowNext,
   parseM3u,
   type EpgData,
+  type EpgProgramme,
   type XmltvResult,
 } from '@iptv-player/core';
 import type { ChannelEntry } from './types';
@@ -29,6 +30,8 @@ export interface UseEpgDataResult {
   channels: ChannelEntry[];
   epgData: EpgData | null;
   epgMapping: Map<string, string> | null;
+  /** Pre-indexed programmes by EPG channel id — O(1) lookup in enrichEntry. */
+  programmesById: Map<string, EpgProgramme[]> | null;
   status: Status;
   error: string | null;
   reload: () => void;
@@ -47,25 +50,52 @@ function structuralEntries(raw: ReturnType<typeof parseM3u>): ChannelEntry[] {
 /**
  * Compute Now/Next and programmes for a single channel entry from raw EPG data.
  * Called lazily by EpgPage for visible channels only.
+ *
+ * Uses `programmesById` (pre-indexed Map<epgId, EpgProgramme[]>) for O(1) lookup.
+ * Falls back to full-programme scan if index is null (before XMLTV arrives).
  */
 export function enrichEntry(
   entry: ChannelEntry,
   epgData: EpgData | null,
   mapping: Map<string, string> | null,
+  programmesById: Map<string, EpgProgramme[]> | null,
 ): ChannelEntry {
   if (!epgData || !mapping) return entry;
   const epgId = mapping.get(entry.m3uChannel.url);
   if (!epgId) return entry;
   const now = new Date();
-  const progs = epgData.programmes
-    .filter(p => p.channelId === epgId)
-    .sort((a, b) => a.start.getTime() - b.start.getTime());
+
+  // O(1) lookup via pre-built index; fall back to filter if index unavailable
+  const progs = programmesById
+    ? (programmesById.get(epgId) ?? [])
+    : epgData.programmes
+        .filter(p => p.channelId === epgId)
+        .sort((a, b) => a.start.getTime() - b.start.getTime());
+
   return {
     ...entry,
     epgChannelId: epgId,
     nowNext: getNowNext(epgData.programmes, epgId, now),
     programs: progs,
   };
+}
+
+/** Build a channelId → sorted programmes index for O(1) enrichEntry lookups. */
+function indexProgrammes(programmes: EpgProgramme[]): Map<string, EpgProgramme[]> {
+  const map = new Map<string, EpgProgramme[]>();
+  for (const p of programmes) {
+    const list = map.get(p.channelId);
+    if (list) {
+      list.push(p);
+    } else {
+      map.set(p.channelId, [p]);
+    }
+  }
+  // Sort each channel's programmes by start time once
+  for (const list of map.values()) {
+    list.sort((a, b) => a.start.getTime() - b.start.getTime());
+  }
+  return map;
 }
 
 export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
@@ -76,6 +106,7 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
   const [refreshing, setRefreshing] = useState(false);
   const [tick, setTick] = useState(0);
   const epgMappingRef = useRef<Map<string, string> | null>(null);
+  const programmesByIdRef = useRef<Map<string, EpgProgramme[]> | null>(null);
 
   const reload = useCallback(() => setTick(t => t + 1), []);
 
@@ -92,6 +123,9 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
       const restoredEpg = restoreEpgData(cached);
       epgMappingRef.current = restoredEpg
         ? buildEpgMapping(cached.m3uChannels, restoredEpg.channels)
+        : null;
+      programmesByIdRef.current = restoredEpg
+        ? indexProgrammes(restoredEpg.programmes)
         : null;
       setChannels(structuralEntries(cached.m3uChannels));
       if (restoredEpg) setEpgData(restoredEpg);
@@ -157,6 +191,7 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
               programmes: xmltvResult.programmes,
             };
             epgMappingRef.current = buildEpgMapping(m3uChannels, data.channels);
+            programmesByIdRef.current = indexProgrammes(data.programmes);
             setEpgData(data);
             setRefreshing(false);
 
@@ -196,5 +231,5 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
     };
   }, [m3uUrl, xmltvUrl, tick]);
 
-  return { channels, epgData, epgMapping: epgMappingRef.current, status, error, reload, refreshing };
+  return { channels, epgData, epgMapping: epgMappingRef.current, programmesById: programmesByIdRef.current, status, error, reload, refreshing };
 }

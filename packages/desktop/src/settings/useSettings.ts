@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { type AppSettings, DEFAULT_SETTINGS, mergeSettings } from '@iptv-player/core';
 
 const STORAGE_KEY = 'iptv-player-settings';
@@ -13,24 +13,36 @@ function load(): AppSettings {
   }
 }
 
-function save(settings: AppSettings): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
-  } catch {
-    // localStorage may be unavailable (e.g. private browsing quota exceeded); ignore
-  }
-}
-
 export function useSettings(): {
   settings: AppSettings;
   updateSettings: (patch: Partial<AppSettings>) => void;
 } {
   const [settings, setSettings] = useState<AppSettings>(load);
 
+  // Defer localStorage writes to avoid blocking renders.
+  // Writing synchronously inside setState updaters causes visible jank
+  // during playback because JSON.stringify + setItem block the main thread
+  // long enough to drop video frames.
+  const pendingRef = useRef<AppSettings | null>(null);
+
+  useEffect(() => {
+    if (!pendingRef.current) return;
+    const s = pendingRef.current;
+    // Defer to the next microtask so React finishes painting first
+    const id = requestIdleCallback(
+      () => {
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(s)); } catch { /* quota exceeded */ }
+      },
+      { timeout: 5000 },
+    );
+    pendingRef.current = null;
+    return () => cancelIdleCallback(id);
+  }, [settings]);
+
   const updateSettings = useCallback((patch: Partial<AppSettings>) => {
     setSettings(prev => {
       const next = { ...prev, ...patch };
-      save(next);
+      pendingRef.current = next;
       return next;
     });
   }, []);
