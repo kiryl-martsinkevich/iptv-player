@@ -7,9 +7,12 @@ import type { IncomingMessage, ServerResponse } from 'node:http';
 //
 // Hardening (this dev server is reachable by every page open in the browser):
 //  - Reject requests carrying an Origin header: the app itself calls the proxy
-//    same-origin via GET, which sends no Origin; any cross-origin (drive-by) fetch does.
+//    same-origin via GET, which sends no Origin; any cross-origin (drive-by)
+//    browser fetch does.
 //  - Reject non-localhost Host headers (DNS-rebinding guard).
 //  - Forward only http:/https: targets.
+//  - Do not follow redirects: a validated http(s) target could 302 to an
+//    internal IP (cloud metadata, LAN), bypassing the scheme/host guard.
 function corsProxyPlugin() {
   return {
     name: 'cors-proxy',
@@ -41,7 +44,7 @@ function corsProxyPlugin() {
         }
 
         try {
-          const upstream = await fetch(parsed, { headers: { 'User-Agent': 'iptv-player-dev' } });
+          const upstream = await fetch(parsed, { redirect: 'manual', headers: { 'User-Agent': 'iptv-player-dev' } });
           res.setHeader('Content-Type', upstream.headers.get('content-type') ?? 'text/plain');
           res.statusCode = upstream.status;
           const buf = await upstream.arrayBuffer();
