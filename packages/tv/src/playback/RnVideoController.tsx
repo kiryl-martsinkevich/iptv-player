@@ -98,10 +98,17 @@ export function useRnVideoController(): {
   const lastProgressWallRef = useRef<number>(Date.now());
   const lastProgressPosRef = useRef<number>(0);
 
+  // Backoff attempt counter. Separate from state.retryTick (which is a remount
+  // key that must only grow): this resets once playback recovers, restoring
+  // the full retry budget for the next incident.
+  const retryCountRef = useRef(0);
+
   const controller = useMemo<PlaybackController>(
     () => ({
-      load: (url: string, bufferProfile: BufferProfile, resilienceConfig: ResilienceConfig = {}) =>
-        dispatch({ type: 'LOAD', url, bufferProfile, resilienceConfig }),
+      load: (url: string, bufferProfile: BufferProfile, resilienceConfig: ResilienceConfig = {}) => {
+        retryCountRef.current = 0;
+        dispatch({ type: 'LOAD', url, bufferProfile, resilienceConfig });
+      },
       play: () => dispatch({ type: 'PLAY' }),
       pause: () => dispatch({ type: 'PAUSE' }),
       seek: (positionMs: number) => videoRef.current?.seek(positionMs / 1000),
@@ -144,6 +151,7 @@ export function useRnVideoController(): {
   }, []);
 
   const onProgress = useCallback((data: OnProgressData) => {
+    retryCountRef.current = 0;
     lastProgressWallRef.current = Date.now();
     lastProgressPosRef.current = data.currentTime * 1_000;
     dispatch({
@@ -172,10 +180,11 @@ export function useRnVideoController(): {
       'Playback error';
     dispatch({ type: 'SET_STATUS', status: { kind: 'error', message } });
 
-    const { url, resilienceConfig, retryTick } = stateRef.current;
-    if (!url || retryTick >= MAX_RETRIES) return;
+    const { url, resilienceConfig } = stateRef.current;
+    if (!url || retryCountRef.current >= MAX_RETRIES) return;
     const maxDelayMs = resilienceConfig.retryMaxDelayMs ?? 30_000;
-    const delay = getRetryDelay(retryTick, maxDelayMs);
+    const delay = getRetryDelay(retryCountRef.current, maxDelayMs);
+    retryCountRef.current += 1;
     setTimeout(() => {
       if (mountedRef.current && stateRef.current.url === url) {
         dispatch({ type: 'RETRY' });
@@ -199,6 +208,7 @@ export function useRnVideoController(): {
 
   const VideoComponent = state.url ? (
     <Video
+      key={state.retryTick}
       ref={videoRef}
       source={{ uri: state.url, bufferConfig: exoParams }}
       paused={state.paused}
