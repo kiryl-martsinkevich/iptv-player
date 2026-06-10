@@ -19,7 +19,7 @@ interface Props {
 
 export function EpgScreen({ settings, updateSettings }: Props): React.ReactElement {
   const { m3uUrl, xmltvUrl, bufferProfile } = settings;
-  const { channels, epgData, epgMapping, status, error } = useEpgData(m3uUrl, xmltvUrl);
+  const { channels, epgData, epgMapping, programmesById, status, error } = useEpgData(m3uUrl, xmltvUrl);
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('favourites');
   const [searchInput, setSearchInput] = useState('');
@@ -55,8 +55,8 @@ export function EpgScreen({ settings, updateSettings }: Props): React.ReactEleme
       const q = searchQuery.trim().toLowerCase();
       filtered = filtered.filter(c => c.m3uChannel.name.toLowerCase().includes(q));
     }
-    return filtered.map(e => enrichEntry(e, epgData, epgMapping));
-  }, [channels, activeTab, searchQuery, favourites, epgData, epgMapping]);
+    return filtered.map(e => enrichEntry(e, epgData, epgMapping, programmesById));
+  }, [channels, activeTab, searchQuery, favourites, epgData, epgMapping, programmesById]);
 
   const handleSelect = (entry: ChannelEntry) => {
     setActiveUrl(entry.m3uChannel.url);
