@@ -198,6 +198,15 @@ pnpm is installed at `~/.local/share/pnpm/bin/pnpm`. Add `export PNPM_HOME="$HOM
 | 7 — Slow-stream resilience | ✅ complete | ResilienceConfig (abrCapBps, bitrateLock, stallTimeoutSec, retryMaxDelayMs, prefetchEnabled); hls.js: ABR cap + level lock + stall watchdog + backoff retry; react-native-video: maxBitRate + selectedVideoTrack + stall watchdog + backoff retry; usePrefetch desktop hook (bandwidth-aware, AbortController body cancel, disabled by default) — 62 tests, typechecks + lint clean |
 | 8 — Settings UI | ✅ complete | AppSettings (m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled) + mergeSettings in core; desktop: localStorage useSettings + SettingsPanel (profile selector, prefetch toggle, source edit) + gear button; TV: AsyncStorage useSettings + SettingsModal (profile selector, source edit) + gear button; EpgPage/EpgScreen accept bufferProfile prop — 71 tests, typechecks + lint clean |
 | 9 — Channel navigation | ✅ complete | Favourites/Categories tabs, persistent search bar, right-click/long-press context menu (Play, ☆/★), favouriteUrls persistence in AppSettings, lazy EPG Now/Next via enrichEntry, collapsed categories on desktop — 74 tests, typechecks + lint clean |
+| 10 — Review fixes | ✅ complete | Security: dev-proxy hardening (origin/host/scheme checks, no-redirect), finite XMLTV entity cap (1M), Xtream URL encoding. Correctness: TV typecheck regression, single settings instance per app, TV retry remount, name-fallback favourite removal (findFavouriteIndex), hls.js autoLevelCapping ABR cap, indexed Now/Next on both platforms, retry-race + retry-budget fixes, mpegts/native retry, reload error surfacing, stable category collapse, gzip (.gz) source support — 107 tests, typechecks + lint clean |
+
+---
+
+## Security notes
+
+- **Untrusted inputs:** M3U playlists, XMLTV feeds, and Xtream responses come from third-party servers and must be treated as hostile (entity-expansion cap in `parseXmltv`, URL encoding in `XtreamClient`).
+- **Credentials in URLs:** Xtream-style source URLs embed `username`/`password`. They are persisted in plaintext (`localStorage` on desktop, `AsyncStorage` on TV) and appear in the desktop EPG cache key. Do not add logging of source URLs. A move to OS keychain / Tauri secure storage is open work.
+- **Dev CORS proxy:** `/__proxy__/` in the desktop Vite config is dev-only and hardened (same-origin callers, localhost host header, http/https targets only, redirects not followed). Never ship it in a production bundle.
 
 ---
 
