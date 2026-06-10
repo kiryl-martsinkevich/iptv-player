@@ -76,8 +76,12 @@ export function parseXmltv(content: string): XmltvResult {
     trimValues: true,
     isArray: (tagName) =>
       ['channel', 'programme', 'display-name', 'icon'].includes(tagName),
-    // XMLTV sources are user-supplied; no XEE risk. Remove the expansion cap.
-    processEntities: { maxTotalExpansions: Number.MAX_SAFE_INTEGER },
+    // The XMLTV URL points at a third-party server — treat the document as
+    // untrusted. Standard entities (&amp; …) count toward this cap, so it must
+    // be generous for big real-world EPGs, but it must stay finite to bound
+    // DOCTYPE entity bombs (billion laughs). fast-xml-parser's separate
+    // maxExpandedLength guard (100 kB) stays at its default.
+    processEntities: { maxTotalExpansions: 1_000_000 },
   });
 
   // XMLParser.parse returns unknown; the shape depends entirely on the input document.

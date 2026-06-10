@@ -133,3 +133,34 @@ describe('parseXmltv — edge cases', () => {
     expect(channels[0].id).toBe('only');
   });
 });
+
+describe('parseXmltv — entity expansion limits', () => {
+  it('parses documents with many standard entities (legit large EPG)', () => {
+    // 2 000 &amp; references — above the old default cap of 1 000
+    const desc = Array.from({ length: 2000 }, () => '&amp;').join(' ');
+    const xml = `<tv>
+      <channel id="x"><display-name>X</display-name></channel>
+      <programme start="20240601120000" stop="20240601130000" channel="x">
+        <title>T</title><desc>${desc}</desc>
+      </programme>
+    </tv>`;
+    const { programmes } = parseXmltv(xml);
+    expect(programmes[0].description).toContain('&');
+  });
+
+  it('rejects documents that exceed the 1M entity-expansion cap', () => {
+    // fast-xml-parser refuses to register chained entities (values containing &)
+    // so classic billion-laughs can't expand. The real risk is a document with
+    // a simple custom entity referenced > 1 000 000 times, which would bloat
+    // memory. 1.1M refs exceeds the cap and must throw.
+    const refs = Array.from({ length: 1_100_000 }, () => '&ent;').join('');
+    const bomb = `<?xml version="1.0"?>
+    <!DOCTYPE tv [
+      <!ENTITY ent "x">
+    ]>
+    <tv>
+      <channel id="x"><display-name>${refs}</display-name></channel>
+    </tv>`;
+    expect(() => parseXmltv(bomb)).toThrow(/entity expansion limit exceeded/i);
+  });
+});
