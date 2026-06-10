@@ -68,7 +68,7 @@ export class XtreamClient {
   constructor(creds: XtreamCredentials) {
     const host = creds.host.replace(/\/$/, '');
     this.apiBase = `${host}/player_api.php?username=${encodeURIComponent(creds.username)}&password=${encodeURIComponent(creds.password)}`;
-    this.streamBase = `${host}/live/${creds.username}/${creds.password}`;
+    this.streamBase = `${host}/live/${encodeURIComponent(creds.username)}/${encodeURIComponent(creds.password)}`;
   }
 
   private async get<T>(action: string): Promise<T> {
@@ -88,7 +88,7 @@ export class XtreamClient {
 
   async getLiveStreams(categoryId?: string): Promise<XtreamStream[]> {
     const action = categoryId
-      ? `action=get_live_streams&category_id=${categoryId}`
+      ? `action=get_live_streams&category_id=${encodeURIComponent(categoryId)}`
       : 'action=get_live_streams';
     const raw = await this.get<RawStream[]>(action);
     return raw.map((s) => ({

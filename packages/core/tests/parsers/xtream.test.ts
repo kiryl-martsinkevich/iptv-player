@@ -150,4 +150,32 @@ describe('XtreamClient', () => {
       expect(mockFetch).toHaveBeenCalledWith(expect.stringContaining('limit=4'));
     });
   });
+
+  describe('URL encoding', () => {
+    const SPECIAL_CREDS = {
+      host: 'http://provider.test:8080',
+      username: 'user/name',
+      password: 'p&ss?word#1',
+    };
+
+    it('encodes credentials in the stream URL path', async () => {
+      mockFetch.mockResolvedValueOnce(mockJson([
+        { num: 1, name: 'A', stream_id: 7, stream_icon: '', category_id: '1' },
+      ]));
+      const client = new XtreamClient(SPECIAL_CREDS);
+      const [stream] = await client.getLiveStreams();
+      expect(stream.streamUrl).toBe(
+        'http://provider.test:8080/live/user%2Fname/p%26ss%3Fword%231/7.m3u8',
+      );
+    });
+
+    it('encodes categoryId in the query string', async () => {
+      mockFetch.mockResolvedValueOnce(mockJson([]));
+      const client = new XtreamClient(SPECIAL_CREDS);
+      await client.getLiveStreams('4&action=server_info');
+      expect(mockFetch).toHaveBeenCalledWith(
+        expect.stringContaining('category_id=4%26action%3Dserver_info'),
+      );
+    });
+  });
 });
