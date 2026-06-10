@@ -102,7 +102,6 @@ export function EpgPage({ settings, updateSettings }: Props): React.ReactElement
   useEffect(() => {
     if (!categories) return;
     setCollapsed(new Set(categories.keys()));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoriesKey]);
 
   const toggleCollapse = (cat: string) => {
