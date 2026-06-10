@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
-import { matchFavouriteUrls, type BufferProfile } from '@iptv-player/core';
+import { findFavouriteIndex, matchFavouriteUrls, type AppSettings } from '@iptv-player/core';
 import { PlayerScreen } from '../ui/player/PlayerScreen';
-import { useSettings } from '../settings/useSettings';
 import { ChannelList } from './components/ChannelList';
 import { CategoryList } from './components/CategoryList';
 import { ChannelContextMenu } from './components/ChannelContextMenu';
@@ -14,14 +13,13 @@ import { enrichEntry, useEpgData } from './useEpgData';
 type Tab = 'favourites' | 'categories';
 
 interface Props {
-  m3uUrl: string;
-  xmltvUrl: string;
-  bufferProfile: BufferProfile;
+  settings: AppSettings;
+  updateSettings: (patch: Partial<AppSettings>) => void;
 }
 
-export function EpgScreen({ m3uUrl, xmltvUrl, bufferProfile }: Props): React.ReactElement {
+export function EpgScreen({ settings, updateSettings }: Props): React.ReactElement {
+  const { m3uUrl, xmltvUrl, bufferProfile } = settings;
   const { channels, epgData, epgMapping, status, error } = useEpgData(m3uUrl, xmltvUrl);
-  const { settings, updateSettings } = useSettings();
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('favourites');
   const [searchInput, setSearchInput] = useState('');
@@ -65,13 +63,13 @@ export function EpgScreen({ m3uUrl, xmltvUrl, bufferProfile }: Props): React.Rea
   };
 
   const toggleFavourite = (entry: ChannelEntry) => {
-    const url = entry.m3uChannel.url;
-    const name = entry.m3uChannel.name;
-    const idx = settings.favouriteUrls.indexOf(url);
+    const { url, name } = entry.m3uChannel;
+    const idx = findFavouriteIndex({ url, name }, settings.favouriteUrls, settings.favouriteNames);
     if (idx >= 0) {
-      const urls = settings.favouriteUrls.filter((_, i) => i !== idx);
-      const names = settings.favouriteNames.filter((_, i) => i !== idx);
-      updateSettings({ favouriteUrls: urls, favouriteNames: names });
+      updateSettings({
+        favouriteUrls: settings.favouriteUrls.filter((_, i) => i !== idx),
+        favouriteNames: settings.favouriteNames.filter((_, i) => i !== idx),
+      });
     } else {
       updateSettings({
         favouriteUrls: [...settings.favouriteUrls, url],
