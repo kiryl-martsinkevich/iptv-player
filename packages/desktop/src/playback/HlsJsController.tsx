@@ -212,8 +212,10 @@ export function useHlsJsController(): {
       lastCurrentTime = ct;
     }, TICK_MS);
 
-    // Retry hook for the mpegts and native paths (hls.js has its own ERROR event).
-    const onMediaError = () => scheduleRetry();
+    // Native Safari <video> error → schedule a backoff retry. (Distinct from the
+    // always-on `onError` DOM listener above, which only reflects error state in
+    // the UI; this one drives the retry.)
+    const onNativeError = () => scheduleRetry();
 
     if (isMpegTs(state.url)) {
       const player = Mpegts.createPlayer(
@@ -224,8 +226,8 @@ export function useHlsJsController(): {
           seekType: 'range',
         },
       );
-      player.on(Mpegts.Events.ERROR, () => {
-        dispatch({ type: 'SET_STATUS', status: { kind: 'error', message: 'Stream error' } });
+      player.on(Mpegts.Events.ERROR, (errorType: string) => {
+        dispatch({ type: 'SET_STATUS', status: { kind: 'error', message: errorType || 'Stream error' } });
         scheduleRetry();
       });
       player.attachMediaElement(video);
@@ -288,7 +290,7 @@ export function useHlsJsController(): {
       hlsRef.current = hls;
     } else {
       // Safari native HLS
-      video.addEventListener('error', onMediaError);
+      video.addEventListener('error', onNativeError);
       video.src = state.url;
       video.play().catch(() => {});
     }
@@ -297,7 +299,7 @@ export function useHlsJsController(): {
       cancelled = true;
       if (retryTimer !== undefined) clearTimeout(retryTimer);
       clearInterval(stallTimer);
-      video.removeEventListener('error', onMediaError);
+      video.removeEventListener('error', onNativeError);
       hlsRef.current?.destroy();
       hlsRef.current = null;
       if (mpegtsRef.current) {
