@@ -52,3 +52,24 @@ export function matchFavouriteUrls(
 function normalizeName(s: string): string {
   return s.trim().toLowerCase();
 }
+
+/**
+ * Locate a channel in the stored favourites by URL first, then by
+ * case-insensitive name (covers playlists whose stream URLs rotate).
+ * Returns the index into favouriteUrls/favouriteNames, or -1.
+ */
+export function findFavouriteIndex(
+  channel: { url: string; name: string },
+  favouriteUrls: readonly string[],
+  favouriteNames: readonly string[],
+): number {
+  const byUrl = favouriteUrls.indexOf(channel.url);
+  if (byUrl >= 0) return byUrl;
+
+  const key = normalizeName(channel.name);
+  if (!key) return -1;
+  for (let i = 0; i < favouriteNames.length; i++) {
+    if (normalizeName(favouriteNames[i]) === key) return i;
+  }
+  return -1;
+}
