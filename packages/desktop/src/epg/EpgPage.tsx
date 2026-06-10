@@ -1,8 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { matchFavouriteUrls, type BufferProfile } from '@iptv-player/core';
+import { findFavouriteIndex, matchFavouriteUrls, type AppSettings } from '@iptv-player/core';
 import { useHlsJsController } from '../playback/HlsJsController';
 import { BufferHealthBadge } from '../ui/player/BufferHealthBadge';
-import { useSettings } from '../settings/useSettings';
 import type { ChannelEntry } from './types';
 import { ChannelList } from './components/ChannelList';
 import { ChannelContextMenu } from './components/ChannelContextMenu';
@@ -14,10 +13,8 @@ import { usePrefetch } from './usePrefetch';
 type Tab = 'favourites' | 'categories';
 
 interface Props {
-  m3uUrl: string;
-  xmltvUrl: string;
-  bufferProfile: BufferProfile;
-  prefetchEnabled: boolean;
+  settings: AppSettings;
+  updateSettings: (patch: Partial<AppSettings>) => void;
 }
 
 function groupByCategory(entries: ChannelEntry[]): Map<string, ChannelEntry[]> {
@@ -34,9 +31,9 @@ function groupByCategory(entries: ChannelEntry[]): Map<string, ChannelEntry[]> {
   return map;
 }
 
-export function EpgPage({ m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled }: Props): React.ReactElement {
+export function EpgPage({ settings, updateSettings }: Props): React.ReactElement {
+  const { m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled } = settings;
   const { channels, epgData, epgMapping, programmesById, status, error, refreshing } = useEpgData(m3uUrl, xmltvUrl);
-  const { settings, updateSettings } = useSettings();
   const { controller, VideoComponent } = useHlsJsController();
   const [activeUrl, setActiveUrl] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('favourites');
@@ -99,9 +96,9 @@ export function EpgPage({ m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled }: Pr
 
   // Sync collapsed when category set changes (tab switch, search, reload)
   useEffect(() => {
-    if (!categories) return;
-    setCollapsed(new Set(categories.keys()));
-  }, [categories, categoriesKey]);
+    if (!categoriesKey) return;
+    setCollapsed(new Set(categoriesKey.split('|')));
+  }, [categoriesKey]);
 
   const toggleCollapse = (cat: string) => {
     setCollapsed(prev => {
@@ -140,14 +137,13 @@ export function EpgPage({ m3uUrl, xmltvUrl, bufferProfile, prefetchEnabled }: Pr
   };
 
   const toggleFavourite = (entry: ChannelEntry) => {
-    const url = entry.m3uChannel.url;
-    const name = entry.m3uChannel.name;
-    const idx = settings.favouriteUrls.indexOf(url);
+    const { url, name } = entry.m3uChannel;
+    const idx = findFavouriteIndex({ url, name }, settings.favouriteUrls, settings.favouriteNames);
     if (idx >= 0) {
-      // Remove
-      const urls = settings.favouriteUrls.filter((_, i) => i !== idx);
-      const names = settings.favouriteNames.filter((_, i) => i !== idx);
-      updateSettings({ favouriteUrls: urls, favouriteNames: names });
+      updateSettings({
+        favouriteUrls: settings.favouriteUrls.filter((_, i) => i !== idx),
+        favouriteNames: settings.favouriteNames.filter((_, i) => i !== idx),
+      });
     } else {
       // Add — store both URL and name for cross-playlist matching
       updateSettings({
