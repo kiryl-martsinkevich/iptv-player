@@ -94,10 +94,15 @@ export function EpgPage({ settings, updateSettings }: Props): React.ReactElement
     return [...categories.keys()].join('|');
   }, [categories]);
 
-  // Sync collapsed when category set changes (tab switch, search, reload)
+  // Sync collapsed only when the set of category names actually changes
+  // (tab switch, search, reload) — keyed on categoriesKey so a same-content
+  // Map from an EPG refresh doesn't reset collapse. Rebuild from the live
+  // Map's keys rather than splitting the key string, so a group-title that
+  // contains '|' can't corrupt the set.
   useEffect(() => {
-    if (!categoriesKey) return;
-    setCollapsed(new Set(categoriesKey.split('|')));
+    if (!categories) return;
+    setCollapsed(new Set(categories.keys()));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoriesKey]);
 
   const toggleCollapse = (cat: string) => {
