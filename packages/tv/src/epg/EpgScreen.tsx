@@ -29,10 +29,15 @@ export function EpgScreen({ m3uUrl, xmltvUrl, bufferProfile }: Props): React.Rea
   const searchTimerRef = useRef<ReturnType<typeof setTimeout>>();
   const onSearchChange = (value: string) => {
     setSearchInput(value);
-    clearTimeout(searchTimerRef.current);
+    if (searchTimerRef.current !== undefined) clearTimeout(searchTimerRef.current);
     searchTimerRef.current = setTimeout(() => setSearchQuery(value), 200);
   };
-  useEffect(() => () => clearTimeout(searchTimerRef.current), []);
+  useEffect(
+    () => () => {
+      if (searchTimerRef.current !== undefined) clearTimeout(searchTimerRef.current);
+    },
+    [],
+  );
 
   const [contextEntry, setContextEntry] = useState<ChannelEntry | null>(null);
 
