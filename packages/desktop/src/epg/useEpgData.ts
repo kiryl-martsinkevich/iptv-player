@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   buildEpgMapping,
+  bytesToText,
   getNowNext,
   parseM3u,
   type EpgData,
@@ -144,14 +145,14 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
     const run = async () => {
       try {
         const [m3uText, xmltvText] = await Promise.all([
-          fetch(proxyUrl(m3uUrl)).then(r => {
+          fetch(proxyUrl(m3uUrl)).then(async r => {
             if (!r.ok) throw new Error(`M3U fetch failed: ${r.status}`);
-            return r.text();
+            return bytesToText(new Uint8Array(await r.arrayBuffer()));
           }),
           xmltvUrl
-            ? fetch(proxyUrl(xmltvUrl)).then(r => {
+            ? fetch(proxyUrl(xmltvUrl)).then(async r => {
                 if (!r.ok) throw new Error(`XMLTV fetch failed: ${r.status}`);
-                return r.text();
+                return bytesToText(new Uint8Array(await r.arrayBuffer()));
               })
             : Promise.resolve(null),
         ]);

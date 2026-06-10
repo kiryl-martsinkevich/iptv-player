@@ -9,10 +9,12 @@
     "test": "jest"
   },
   "dependencies": {
-    "fast-xml-parser": "^4.4.0"
+    "fast-xml-parser": "^4.4.0",
+    "pako": "^2.1.0"
   },
   "devDependencies": {
     "@types/jest": "*",
-    "@types/node": "^20.0.0"
+    "@types/node": "^20.0.0",
+    "@types/pako": "^2.0.4"
   }
 }

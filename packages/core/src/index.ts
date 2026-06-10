@@ -8,6 +8,8 @@ export { parseXmltv } from './parsers/xmltv';
 export type { XtreamCredentials, XtreamCategory, XtreamStream, XtreamEpgEntry } from './parsers/xtream';
 export { XtreamClient } from './parsers/xtream';
 
+export { isGzip, bytesToText } from './parsers/gzip';
+
 // EPG
 export type { EpgChannel, EpgProgramme, EpgData, NowNext } from './epg/types';
 export { getNowNext } from './epg/types';
