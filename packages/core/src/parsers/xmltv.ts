@@ -77,10 +77,12 @@ export function parseXmltv(content: string): XmltvResult {
     isArray: (tagName) =>
       ['channel', 'programme', 'display-name', 'icon'].includes(tagName),
     // The XMLTV URL points at a third-party server — treat the document as
-    // untrusted. Standard entities (&amp; …) count toward this cap, so it must
-    // be generous for big real-world EPGs, but it must stay finite to bound
-    // DOCTYPE entity bombs (billion laughs). fast-xml-parser's separate
-    // maxExpandedLength guard (100 kB) stays at its default.
+    // untrusted. This caps *custom DOCTYPE entity* expansions (predefined
+    // entities like &amp; use a separate path and do not count), keeping it
+    // generous enough for any real EPG while bounding entity-volume DoS:
+    // fast-xml-parser already drops chained entities (so classic billion-laughs
+    // can't expand), and its separate maxExpandedLength guard (100 kB) stays
+    // at its default. Number.MAX_SAFE_INTEGER had removed this bound entirely.
     processEntities: { maxTotalExpansions: 1_000_000 },
   });
 
