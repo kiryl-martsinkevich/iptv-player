@@ -3,6 +3,7 @@ import { BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 import type { BufferProfile } from '@iptv-player/core';
 import { useRnVideoController } from '../../playback/RnVideoController';
 import { BufferHealthBadge } from './BufferHealthBadge';
+import { useAutoHideControls } from './useAutoHideControls';
 
 interface Props {
   streamUrl: string;
@@ -16,6 +17,7 @@ export function PlayerScreen({
   onBack,
 }: Props): React.ReactElement {
   const { controller, VideoComponent } = useRnVideoController();
+  const { visible } = useAutoHideControls();
   const [volume, setVolume] = useState(1);
 
   useEffect(() => {
@@ -46,18 +48,20 @@ export function PlayerScreen({
     <View style={styles.container}>
       {VideoComponent}
       <BufferHealthBadge status={controller.status} />
-      <View style={styles.volumeBar}>
-        <Pressable style={styles.volBtn} onPress={() => adjustVolume(-0.1)}>
-          <Text style={styles.volBtnText}>🔉</Text>
-        </Pressable>
-        <View style={styles.volTrack}>
-          <View style={[styles.volFill, { width: `${volume * 100}%` }]} />
+      {visible && (
+        <View style={styles.volumeBar}>
+          <Pressable style={styles.volBtn} onPress={() => adjustVolume(-0.1)}>
+            <Text style={styles.volBtnText}>🔉</Text>
+          </Pressable>
+          <View style={styles.volTrack}>
+            <View style={[styles.volFill, { width: `${volume * 100}%` }]} />
+          </View>
+          <Text style={styles.volLabel}>{Math.round(volume * 100)}%</Text>
+          <Pressable style={styles.volBtn} onPress={() => adjustVolume(+0.1)}>
+            <Text style={styles.volBtnText}>🔊</Text>
+          </Pressable>
         </View>
-        <Text style={styles.volLabel}>{Math.round(volume * 100)}%</Text>
-        <Pressable style={styles.volBtn} onPress={() => adjustVolume(+0.1)}>
-          <Text style={styles.volBtnText}>🔊</Text>
-        </Pressable>
-      </View>
+      )}
     </View>
   );
 }

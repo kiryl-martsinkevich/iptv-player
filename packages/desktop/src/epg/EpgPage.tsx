@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { findFavouriteIndex, matchFavouriteUrls, type AppSettings } from '@iptv-player/core';
+import { useFullscreen } from '../ui/player/useFullscreen';
 import { useHlsJsController } from '../playback/HlsJsController';
 import { BufferHealthBadge } from '../ui/player/BufferHealthBadge';
 import type { ChannelEntry } from './types';
@@ -53,6 +54,21 @@ export function EpgPage({ settings, updateSettings }: Props): React.ReactElement
   const [contextMenu, setContextMenu] = useState<{ entry: ChannelEntry; x: number; y: number } | null>(null);
   const [volume, setVolume] = useState(1);
   const { prefetch } = usePrefetch(prefetchEnabled, 2);
+  const playerRef = useRef<HTMLDivElement>(null);
+  const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(playerRef);
+
+  // Toggle fullscreen on "F" — but not while typing in the channel search box.
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'f' && e.key !== 'F') return;
+      const el = document.activeElement;
+      if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) return;
+      e.preventDefault();
+      toggleFullscreen();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [toggleFullscreen]);
 
   // Match stored favourites to current M3U channels (URL exact match + name fallback)
   const favourites = useMemo(
@@ -227,9 +243,26 @@ export function EpgPage({ settings, updateSettings }: Props): React.ReactElement
       )}
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <div style={{ position: 'relative', height: '55%', flexShrink: 0, background: '#000' }}>
+        <div
+          ref={playerRef}
+          onDoubleClick={toggleFullscreen}
+          style={{ position: 'relative', height: '55%', flexShrink: 0, background: '#000' }}
+        >
           {VideoComponent}
           <BufferHealthBadge status={controller.status} />
+          <button
+            onClick={e => { e.stopPropagation(); toggleFullscreen(); }}
+            title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            aria-label={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
+            style={{
+              position: 'absolute', top: 8, right: 8,
+              width: 32, height: 32, lineHeight: '30px', textAlign: 'center',
+              background: 'rgba(0,0,0,0.55)', border: '1px solid #444', borderRadius: 6,
+              color: '#fff', fontSize: 16, cursor: 'pointer', padding: 0,
+            }}
+          >
+            {isFullscreen ? '⤡' : '⤢'}
+          </button>
           <div style={{
             position: 'absolute', bottom: 8, left: 8, right: 8,
             display: 'flex', alignItems: 'center', gap: 8,
