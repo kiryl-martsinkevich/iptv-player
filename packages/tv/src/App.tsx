@@ -31,11 +31,7 @@ export function App(): React.ReactElement {
   if (settings.m3uUrl) {
     return (
       <View style={styles.fill}>
-        <EpgScreen
-          m3uUrl={settings.m3uUrl}
-          xmltvUrl={settings.xmltvUrl}
-          bufferProfile={settings.bufferProfile}
-        />
+        <EpgScreen settings={settings} updateSettings={updateSettings} />
         <TouchableOpacity style={styles.gearBtn} onPress={() => setShowSettings(true)}>
           <Text style={styles.gearText}>⚙</Text>
         </TouchableOpacity>

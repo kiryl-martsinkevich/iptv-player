@@ -71,12 +71,16 @@ export function useHlsJsController(): {
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  const cancelledRef = useRef(false);
+  // Backoff attempt counter — resets when playback recovers (see onPlaying)
+  // or a new load starts. state.retryTick stays a grow-only re-init key.
+  const retryCountRef = useRef(0);
 
   const controller = useMemo<PlaybackController>(
     () => ({
-      load: (url: string, bufferProfile: BufferProfile, resilienceConfig: ResilienceConfig = {}) =>
-        dispatch({ type: 'LOAD', url, bufferProfile, resilienceConfig }),
+      load: (url: string, bufferProfile: BufferProfile, resilienceConfig: ResilienceConfig = {}) => {
+        retryCountRef.current = 0;
+        dispatch({ type: 'LOAD', url, bufferProfile, resilienceConfig });
+      },
       play: () => {
         videoRef.current?.play().catch(() => {});
       },
@@ -110,7 +114,8 @@ export function useHlsJsController(): {
     const onWaiting = () =>
       dispatch({ type: 'SET_STATUS', status: { kind: 'buffering', bufferPercent: 0 } });
 
-    const onPlaying = () =>
+    const onPlaying = () => {
+      retryCountRef.current = 0;
       dispatch({
         type: 'SET_STATUS',
         status: {
@@ -119,6 +124,7 @@ export function useHlsJsController(): {
           durationMs: isFinite(video.duration) ? video.duration * 1000 : null,
         },
       });
+    };
 
     const onTimeUpdate = () => {
       if (!video.paused && !video.seeking) {
@@ -151,11 +157,14 @@ export function useHlsJsController(): {
     };
   }, []);
 
-  // --- Player init / teardown (re-runs on new URL, profile, or retry tick) ---
+  // --- Player init / teardown (re-runs on new URL, profile, config, or retry tick) ---
   useEffect(() => {
     const video = videoRef.current;
 
-    cancelledRef.current = false;
+    // Per-run cancellation: a stale retry timer from a previous run must never
+    // dispatch RETRY against the player created by a later run.
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
 
     hlsRef.current?.destroy();
     hlsRef.current = null;
@@ -170,6 +179,16 @@ export function useHlsJsController(): {
     const hlsParams = toPlatformParams(state.bufferProfile, 'web');
     const stallTimeoutSec = resilienceConfig.stallTimeoutSec ?? 8;
     const TICK_MS = 2_000;
+
+    const scheduleRetry = () => {
+      if (cancelled || retryCountRef.current >= MAX_RETRIES) return;
+      const maxDelayMs = stateRef.current.resilienceConfig.retryMaxDelayMs ?? 30_000;
+      const delay = getRetryDelay(retryCountRef.current, maxDelayMs);
+      retryCountRef.current += 1;
+      retryTimer = setTimeout(() => {
+        if (!cancelled) dispatch({ type: 'RETRY' });
+      }, delay);
+    };
 
     // --- Stall watchdog ---
     let lastCurrentTime = video.currentTime;
@@ -193,6 +212,11 @@ export function useHlsJsController(): {
       lastCurrentTime = ct;
     }, TICK_MS);
 
+    // Native Safari <video> error → schedule a backoff retry. (Distinct from the
+    // always-on `onError` DOM listener above, which only reflects error state in
+    // the UI; this one drives the retry.)
+    const onNativeError = () => scheduleRetry();
+
     if (isMpegTs(state.url)) {
       const player = Mpegts.createPlayer(
         { type: 'mpegts', url: state.url, isLive: true },
@@ -202,6 +226,10 @@ export function useHlsJsController(): {
           seekType: 'range',
         },
       );
+      player.on(Mpegts.Events.ERROR, (errorType: string) => {
+        dispatch({ type: 'SET_STATUS', status: { kind: 'error', message: errorType || 'Stream error' } });
+        scheduleRetry();
+      });
       player.attachMediaElement(video);
       player.load();
       player.play()?.catch(() => {});
@@ -228,31 +256,26 @@ export function useHlsJsController(): {
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        if (resilienceConfig.abrCapBps) {
-          // Cap to highest level below the cap
-          const maxLevel = hls.levels.reduce((max, level, idx) => {
-            return level.maxBitrate <= resilienceConfig.abrCapBps! ? idx : max;
-          }, 0);
-          hls.currentLevel = maxLevel;
-        }
         if (resilienceConfig.bitrateLock) {
-          // Level 0 = lowest bitrate (hls.js sorts ascending)
+          // Hard lock: pin the lowest rung. Level 0 = lowest (hls.js sorts ascending).
           hls.currentLevel = 0;
+        } else if (resilienceConfig.abrCapBps) {
+          // Soft cap: highest level whose bitrate fits under the cap; ABR keeps
+          // adapting among the levels at or below it (autoLevelCapping), unlike
+          // currentLevel which would disable ABR entirely.
+          const capLevel = hls.levels.reduce(
+            (max, level, idx) => (level.bitrate <= resilienceConfig.abrCapBps! ? idx : max),
+            0,
+          );
+          hls.autoLevelCapping = capLevel;
         }
         video.play().catch(() => {});
       });
 
-      if (resilienceConfig.bitrateLock || resilienceConfig.abrCapBps) {
+      if (resilienceConfig.bitrateLock) {
         // Re-pin if something tries to switch up
         hls.on(Hls.Events.LEVEL_SWITCHING, () => {
-          if (resilienceConfig.bitrateLock) {
-            if (hls.currentLevel !== 0) hls.currentLevel = 0;
-          } else if (resilienceConfig.abrCapBps) {
-            const maxLevel = hls.levels.reduce((max, level, idx) => {
-              return level.maxBitrate <= resilienceConfig.abrCapBps! ? idx : max;
-            }, 0);
-            if (hls.currentLevel > maxLevel) hls.currentLevel = maxLevel;
-          }
+          if (hls.currentLevel !== 0) hls.currentLevel = 0;
         });
       }
 
@@ -261,24 +284,22 @@ export function useHlsJsController(): {
         if (!data.fatal) return;
         // Show error state during the backoff window so the UI has feedback
         dispatch({ type: 'SET_STATUS', status: { kind: 'error', message: data.type } });
-        if (stateRef.current.retryTick >= MAX_RETRIES) return; // give up after 10 retries
-        const maxDelayMs = stateRef.current.resilienceConfig.retryMaxDelayMs ?? 30_000;
-        const delay = getRetryDelay(stateRef.current.retryTick, maxDelayMs);
-        setTimeout(() => {
-          if (!cancelledRef.current) dispatch({ type: 'RETRY' });
-        }, delay);
+        scheduleRetry();
       });
 
       hlsRef.current = hls;
     } else {
       // Safari native HLS
+      video.addEventListener('error', onNativeError);
       video.src = state.url;
       video.play().catch(() => {});
     }
 
     return () => {
-      cancelledRef.current = true;
+      cancelled = true;
+      if (retryTimer !== undefined) clearTimeout(retryTimer);
       clearInterval(stallTimer);
+      video.removeEventListener('error', onNativeError);
       hlsRef.current?.destroy();
       hlsRef.current = null;
       if (mpegtsRef.current) {
@@ -288,7 +309,7 @@ export function useHlsJsController(): {
       video.removeAttribute('src');
       video.load();
     };
-  }, [state.url, state.bufferProfile, state.retryTick]);
+  }, [state.url, state.bufferProfile, state.resilienceConfig, state.retryTick]);
 
   const VideoComponent = useCallback(
     () => (

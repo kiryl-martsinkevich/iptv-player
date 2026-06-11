@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   buildEpgMapping,
+  bytesToText,
   getNowNext,
   parseM3u,
   type EpgData,
@@ -75,7 +76,9 @@ export function enrichEntry(
   return {
     ...entry,
     epgChannelId: epgId,
-    nowNext: getNowNext(epgData.programmes, epgId, now),
+    // progs is already this channel's sorted programme list — passing it
+    // avoids getNowNext re-scanning the full programme array per channel.
+    nowNext: getNowNext(progs, epgId, now),
     programs: progs,
   };
 }
@@ -116,10 +119,11 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
     let cancelled = false;
     let worker: Worker | null = null;
 
-    // Phase 0: try cache first for instant display
-    const cached = loadFromCache(m3uUrl);
-    if (cached && tick === 0) {
-      // tick === 0: initial mount. On explicit reload (tick > 0), skip cache.
+    // Phase 0: try cache first for instant display.
+    // Only on initial mount (tick === 0): an explicit reload must hit the
+    // network and surface its errors, so it must not count as a cache hit.
+    const cached = tick === 0 ? loadFromCache(m3uUrl) : null;
+    if (cached) {
       const restoredEpg = restoreEpgData(cached);
       epgMappingRef.current = restoredEpg
         ? buildEpgMapping(cached.m3uChannels, restoredEpg.channels)
@@ -141,14 +145,14 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
     const run = async () => {
       try {
         const [m3uText, xmltvText] = await Promise.all([
-          fetch(proxyUrl(m3uUrl)).then(r => {
+          fetch(proxyUrl(m3uUrl)).then(async r => {
             if (!r.ok) throw new Error(`M3U fetch failed: ${r.status}`);
-            return r.text();
+            return bytesToText(new Uint8Array(await r.arrayBuffer()));
           }),
           xmltvUrl
-            ? fetch(proxyUrl(xmltvUrl)).then(r => {
+            ? fetch(proxyUrl(xmltvUrl)).then(async r => {
                 if (!r.ok) throw new Error(`XMLTV fetch failed: ${r.status}`);
-                return r.text();
+                return bytesToText(new Uint8Array(await r.arrayBuffer()));
               })
             : Promise.resolve(null),
         ]);

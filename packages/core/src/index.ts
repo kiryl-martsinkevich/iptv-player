@@ -8,13 +8,15 @@ export { parseXmltv } from './parsers/xmltv';
 export type { XtreamCredentials, XtreamCategory, XtreamStream, XtreamEpgEntry } from './parsers/xtream';
 export { XtreamClient } from './parsers/xtream';
 
+export { isGzip, bytesToText } from './parsers/gzip';
+
 // EPG
 export type { EpgChannel, EpgProgramme, EpgData, NowNext } from './epg/types';
 export { getNowNext } from './epg/types';
 
 export { buildEpgMapping } from './epg/mapper';
 
-export { matchFavouriteUrls } from './epg/favouriteMatcher';
+export { matchFavouriteUrls, findFavouriteIndex } from './epg/favouriteMatcher';
 
 export type { EpgSnapshot, SerializedProgramme } from './epg/cache';
 export { serializeEpg, deserializeEpg } from './epg/cache';

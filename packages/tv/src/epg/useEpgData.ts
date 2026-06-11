@@ -2,10 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { InteractionManager } from 'react-native';
 import {
   buildEpgMapping,
+  bytesToText,
   getNowNext,
   parseM3u,
   parseXmltv,
   type EpgData,
+  type EpgProgramme,
 } from '@iptv-player/core';
 import type { ChannelEntry } from './types';
 
@@ -15,30 +17,55 @@ export interface UseEpgDataResult {
   channels: ChannelEntry[];
   epgData: EpgData | null;
   epgMapping: Map<string, string> | null;
+  /** Pre-indexed programmes by EPG channel id — O(1) lookup in enrichEntry. */
+  programmesById: Map<string, EpgProgramme[]> | null;
   status: Status;
   error: string | null;
   reload: () => void;
 }
 
-/** Compute Now/Next and programmes for a single entry from raw EPG data. */
+/**
+ * Compute Now/Next and programmes for a single entry from raw EPG data.
+ * Uses the programmesById index when available; falls back to a full scan.
+ */
 export function enrichEntry(
   entry: ChannelEntry,
   epgData: EpgData | null,
   mapping: Map<string, string> | null,
+  programmesById: Map<string, EpgProgramme[]> | null,
 ): ChannelEntry {
   if (!epgData || !mapping) return entry;
   const epgId = mapping.get(entry.m3uChannel.url);
   if (!epgId) return entry;
   const now = new Date();
-  const progs = epgData.programmes
-    .filter(p => p.channelId === epgId)
-    .sort((a, b) => a.start.getTime() - b.start.getTime());
+  const progs = programmesById
+    ? (programmesById.get(epgId) ?? [])
+    : epgData.programmes
+        .filter(p => p.channelId === epgId)
+        .sort((a, b) => a.start.getTime() - b.start.getTime());
   return {
     ...entry,
     epgChannelId: epgId,
-    nowNext: getNowNext(epgData.programmes, epgId, now),
+    nowNext: getNowNext(progs, epgId, now),
     programs: progs,
   };
+}
+
+/** Build a channelId → sorted programmes index for O(1) enrichEntry lookups. */
+function indexProgrammes(programmes: EpgProgramme[]): Map<string, EpgProgramme[]> {
+  const map = new Map<string, EpgProgramme[]>();
+  for (const p of programmes) {
+    const list = map.get(p.channelId);
+    if (list) {
+      list.push(p);
+    } else {
+      map.set(p.channelId, [p]);
+    }
+  }
+  for (const list of map.values()) {
+    list.sort((a, b) => a.start.getTime() - b.start.getTime());
+  }
+  return map;
 }
 
 export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
@@ -49,6 +76,7 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
   const reloadKey = useRef(0);
   const [tick, setTick] = useState(0);
   const epgMappingRef = useRef<Map<string, string> | null>(null);
+  const programmesByIdRef = useRef<Map<string, EpgProgramme[]> | null>(null);
 
   const reload = useCallback(() => {
     reloadKey.current += 1;
@@ -65,14 +93,14 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
     const run = async () => {
       try {
         const [m3uText, xmltvText] = await Promise.all([
-          fetch(m3uUrl).then(r => {
+          fetch(m3uUrl).then(async r => {
             if (!r.ok) throw new Error(`M3U fetch failed: ${r.status}`);
-            return r.text();
+            return bytesToText(new Uint8Array(await r.arrayBuffer()));
           }),
           xmltvUrl
-            ? fetch(xmltvUrl).then(r => {
+            ? fetch(xmltvUrl).then(async r => {
                 if (!r.ok) throw new Error(`XMLTV fetch failed: ${r.status}`);
-                return r.text();
+                return bytesToText(new Uint8Array(await r.arrayBuffer()));
               })
             : Promise.resolve(null),
         ]);
@@ -104,6 +132,7 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
                 programmes: xmltvResult.programmes,
               };
               epgMappingRef.current = buildEpgMapping(m3uChannels, data.channels);
+              programmesByIdRef.current = indexProgrammes(data.programmes);
               setEpgData(data);
             } catch (err) {
               setError(err instanceof Error ? err.message : 'EPG parse error');
@@ -123,5 +152,5 @@ export function useEpgData(m3uUrl: string, xmltvUrl: string): UseEpgDataResult {
     return () => { cancelled = true; };
   }, [m3uUrl, xmltvUrl, tick]);
 
-  return { channels, epgData, epgMapping: epgMappingRef.current, status, error, reload };
+  return { channels, epgData, epgMapping: epgMappingRef.current, programmesById: programmesByIdRef.current, status, error, reload };
 }

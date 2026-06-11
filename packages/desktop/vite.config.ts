@@ -2,8 +2,17 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
-// Dev-only CORS proxy: GET /__proxy__/<url> → forwards to <url> with CORS headers.
-// Tauri native shell bypasses CORS entirely; this proxy is only needed for plain-browser dev.
+// Dev-only CORS proxy: GET /__proxy__/<url> → forwards to <url>.
+// Tauri's native shell bypasses CORS entirely; this proxy exists only for plain-browser dev.
+//
+// Hardening (this dev server is reachable by every page open in the browser):
+//  - Reject requests carrying an Origin header: the app itself calls the proxy
+//    same-origin via GET, which sends no Origin; any cross-origin (drive-by)
+//    browser fetch does.
+//  - Reject non-localhost Host headers (DNS-rebinding guard).
+//  - Forward only http:/https: targets.
+//  - Do not follow redirects: a validated http(s) target could 302 to an
+//    internal IP (cloud metadata, LAN), bypassing the scheme/host guard.
 function corsProxyPlugin() {
   return {
     name: 'cors-proxy',
@@ -11,9 +20,31 @@ function corsProxyPlugin() {
       server.middlewares.use('/__proxy__', async (req: IncomingMessage, res: ServerResponse, next: () => void) => {
         const target = req.url?.slice(1); // strip leading /
         if (!target) return next();
+
+        if (req.headers.origin) {
+          res.statusCode = 403;
+          return res.end('Cross-origin use of the dev proxy is not allowed');
+        }
+        const host = req.headers.host ?? '';
+        if (!/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host)) {
+          res.statusCode = 403;
+          return res.end('Dev proxy is localhost-only');
+        }
+
+        let parsed: URL;
         try {
-          const upstream = await fetch(target, { headers: { 'User-Agent': 'iptv-player-dev' } });
-          res.setHeader('Access-Control-Allow-Origin', '*');
+          parsed = new URL(target);
+        } catch {
+          res.statusCode = 400;
+          return res.end('Invalid target URL');
+        }
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+          res.statusCode = 400;
+          return res.end('Only http(s) targets are allowed');
+        }
+
+        try {
+          const upstream = await fetch(parsed, { redirect: 'manual', headers: { 'User-Agent': 'iptv-player-dev' } });
           res.setHeader('Content-Type', upstream.headers.get('content-type') ?? 'text/plain');
           res.statusCode = upstream.status;
           const buf = await upstream.arrayBuffer();

@@ -1,4 +1,4 @@
-import { matchFavouriteUrls } from '../../src/epg/favouriteMatcher';
+import { matchFavouriteUrls, findFavouriteIndex } from '../../src/epg/favouriteMatcher';
 import type { M3uChannel } from '../../src/parsers/m3u';
 
 const CHANNELS: M3uChannel[] = [
@@ -125,5 +125,28 @@ describe('matchFavouriteUrls', () => {
     // Should match the first one
     expect(result.has('http://example.com/espn-hd.m3u8')).toBe(true);
     expect(result.size).toBe(1);
+  });
+});
+
+describe('findFavouriteIndex', () => {
+  const favUrls = ['http://old.example/espn', 'http://old.example/cnn'];
+  const favNames = ['ESPN', 'CNN International'];
+
+  it('finds by exact URL', () => {
+    expect(
+      findFavouriteIndex({ url: 'http://old.example/cnn', name: 'whatever' }, favUrls, favNames),
+    ).toBe(1);
+  });
+
+  it('falls back to case-insensitive name when the URL rotated', () => {
+    expect(
+      findFavouriteIndex({ url: 'http://new.example/espn2', name: 'espn' }, favUrls, favNames),
+    ).toBe(0);
+  });
+
+  it('returns -1 when neither URL nor name matches', () => {
+    expect(
+      findFavouriteIndex({ url: 'http://x.example/a', name: 'BBC' }, favUrls, favNames),
+    ).toBe(-1);
   });
 });

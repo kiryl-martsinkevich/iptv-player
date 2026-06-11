@@ -19,12 +19,7 @@ export function App(): React.ReactElement {
   if (settings.m3uUrl) {
     return (
       <>
-        <EpgPage
-          m3uUrl={settings.m3uUrl}
-          xmltvUrl={settings.xmltvUrl}
-          bufferProfile={settings.bufferProfile}
-          prefetchEnabled={settings.prefetchEnabled}
-        />
+        <EpgPage settings={settings} updateSettings={updateSettings} />
         <button style={gearBtn} title="Settings" onClick={() => setShowSettings(true)}>⚙</button>
         {showSettings && (
           <SettingsPanel
