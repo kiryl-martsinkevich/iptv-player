@@ -56,6 +56,7 @@ export function EpgPage({ settings, updateSettings }: Props): React.ReactElement
   const { prefetch } = usePrefetch(prefetchEnabled, 2);
   const playerRef = useRef<HTMLDivElement>(null);
   const { isFullscreen, toggle: toggleFullscreen } = useFullscreen(playerRef);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // Toggle fullscreen on "F" — but not while typing in the channel search box.
   useEffect(() => {
@@ -198,7 +199,7 @@ export function EpgPage({ settings, updateSettings }: Props): React.ReactElement
 
   return (
     <div style={{ display: 'flex', height: '100%', background: '#111', overflow: 'hidden' }}>
-      {status === 'loading' ? (
+      {!sidebarCollapsed && (status === 'loading' ? (
         <div style={{ width: 240, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#aaa', fontSize: 13 }}>
           Loading…
         </div>
@@ -240,7 +241,7 @@ export function EpgPage({ settings, updateSettings }: Props): React.ReactElement
             />
           )}
         </div>
-      )}
+      ))}
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <div
@@ -263,6 +264,21 @@ export function EpgPage({ settings, updateSettings }: Props): React.ReactElement
           >
             {isFullscreen ? '⤡' : '⤢'}
           </button>
+          {!isFullscreen && (
+            <button
+              onClick={e => { e.stopPropagation(); setSidebarCollapsed(c => !c); }}
+              title={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+              aria-label={sidebarCollapsed ? 'Show sidebar' : 'Hide sidebar'}
+              style={{
+                position: 'absolute', top: 8, left: 8,
+                width: 32, height: 32, lineHeight: '30px', textAlign: 'center',
+                background: 'rgba(0,0,0,0.55)', border: '1px solid #444', borderRadius: 6,
+                color: '#fff', fontSize: 16, cursor: 'pointer', padding: 0,
+              }}
+            >
+              {sidebarCollapsed ? '▶' : '◀'}
+            </button>
+          )}
           <div style={{
             position: 'absolute', bottom: 8, left: 8, right: 8,
             display: 'flex', alignItems: 'center', gap: 8,
