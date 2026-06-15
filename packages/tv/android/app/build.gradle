@@ -15,6 +15,11 @@ react {
     reactNativeDir = file("$rootDir/../../../node_modules/react-native")
     codegenDir = file("$rootDir/../../../node_modules/@react-native/codegen")
     cliFile = file("$rootDir/../../../node_modules/react-native/cli.js")
+    //   The plugin derives hermesc from `root` (not reactNativeDir), i.e.
+    //   <root>/node_modules/react-native/sdks/hermesc — which doesn't exist
+    //   under hoisting. Point it at the hoisted copy explicitly. %OS-BIN% is
+    //   substituted by the plugin (linux64-bin / osx-bin / win64-bin).
+    hermesCommand = "$rootDir/../../../node_modules/react-native/sdks/hermesc/%OS-BIN%/hermesc"
 
     /* Variants */
     //   The list of variants to that are debuggable. For those we're going to
