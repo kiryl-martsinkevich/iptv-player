@@ -51,6 +51,12 @@ Platform-specific behaviour is injected through interfaces (primarily `PlaybackC
 
 react-native-tvos app. Built with Metro. Implements `PlaybackController` via `react-native-video` (`RnVideoController`). Scaffolded fully in Phase 4.
 
+Native `android/` project added in Phase 13 (generated from the RN-tvOS `template/`): package `com.iptvplayer.tv`, RN component name `IPTVPlayer` (must match `app.json` `name`), AndroidManifest declares `LEANBACK_LAUNCHER` + `uses-feature` leanback/touchscreen for Android TV. **iOS/tvOS Xcode project still not generated.**
+
+**pnpm + RN gradle paths:** node_modules is hoisted to the repo root (`.npmrc` → `node-linker=hoisted`) because the RN gradle scripts assume node_modules sits next to `android/`. The gradle references (`settings.gradle`, `app/build.gradle` `react {}` block + `native_modules.gradle` applies) are repointed at the repo-root node_modules via `$rootDir/../../../node_modules`. Do not revert the linker without fixing those paths.
+
+**Building the APK** (needs Android SDK + JDK 17 — not buildable in the dev container, which has JDK 25 and no SDK): `cd packages/tv/android && ./gradlew assembleRelease`. Then `adb connect <tv-ip>:5555 && adb install -r app/build/outputs/apk/release/app-release.apk`.
+
 ### packages/desktop
 
 RN-Web app wrapped in a Tauri 2 shell. Built with Vite. Implements `PlaybackController` via hls.js + mpegts.js (`HlsJsController`). Scaffolded fully in Phase 5.
@@ -201,6 +207,7 @@ pnpm is installed at `~/.local/share/pnpm/bin/pnpm`. Add `export PNPM_HOME="$HOM
 | 10 — Review fixes | ✅ complete | Security: dev-proxy hardening (origin/host/scheme checks, no-redirect), finite XMLTV entity cap (1M), Xtream URL encoding. Correctness: TV typecheck regression, single settings instance per app, TV retry remount, name-fallback favourite removal (findFavouriteIndex), hls.js autoLevelCapping ABR cap, indexed Now/Next on both platforms, retry-race + retry-budget fixes, mpegts/native retry, reload error surfacing, stable category collapse, gzip (.gz) source support — 107 tests, typechecks + lint clean |
 | 11 — Fullscreen mode | ✅ complete | Desktop: `useFullscreen` hook (Fullscreen API) on the EpgPage player — ⤢ button + double-click + F key (ignored while search focused), Esc exits. TV: `useAutoHideControls` (useTVEventHandler) hides the volume bar after 3s idle, any remote press reveals it; buffer/error badge unaffected. No core changes, no new deps — typechecks + lint clean, 107 tests. |
 | 12 — Collapsible sidebar | ✅ complete | Desktop: ephemeral `sidebarCollapsed` state in EpgPage + a top-left ◀/▶ toggle button (mirrors the fullscreen button, hidden while fullscreen) that hides the channel sidebar so the player + EPG grid span the full window width. No core changes — typechecks + lint clean, 107 tests. |
+| 13 — TV Android native project | 🟡 generated (build unverified) | `packages/tv/android/` generated from the RN-tvOS `template/`: rebranded to `com.iptvplayer.tv` / component `IPTVPlayer`, Android TV leanback manifest (`LEANBACK_LAUNCHER` + `uses-feature`). Root `.npmrc` → `node-linker=hoisted` so RN's gradle node_modules paths resolve (repointed at repo-root node_modules via `$rootDir/../../../node_modules`). `react-native.config.js` added. JS typecheck/lint/107 tests still green; gradle paths resolve. **APK build not run** — dev container lacks Android SDK and has JDK 25 (RN 0.74 needs JDK 17). Next: build `assembleRelease` + `adb install` on a TV-dev machine. |
 
 ---
 

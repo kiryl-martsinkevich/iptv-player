@@ -12,7 +12,9 @@ packages/desktop/src-tauri/target/
 # RN / Metro
 packages/tv/.metro-health-check*
 packages/tv/android/build/
+packages/tv/android/app/build/
 packages/tv/android/.gradle/
+packages/tv/android/local.properties
 packages/tv/ios/Pods/
 packages/tv/ios/build/
 
