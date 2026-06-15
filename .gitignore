@@ -16,6 +16,9 @@ packages/tv/android/.gradle/
 packages/tv/ios/Pods/
 packages/tv/ios/build/
 
+# claude-mem plugin context artifact (stray, not project memory)
+.github/workflows/CLAUDE.md
+
 # misc
 .DS_Store
 *.log
