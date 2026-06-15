@@ -1,0 +1,74 @@
+name: Android build
+
+# Builds the Android TV release APK. Runs only when the TV app (or the deps /
+# install config that feed its build) changes — the always-on JS gate lives in
+# ci.yml. No NDK is installed: with newArchEnabled=false + Hermes the build
+# packages prebuilt native libs from the RN AAR and compiles no C++ (verified
+# via `gradlew assembleRelease --dry-run` — no externalNativeBuild/cmake tasks).
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/tv/**'
+      - 'pnpm-lock.yaml'
+      - '.npmrc'
+      - '.github/workflows/android.yml'
+  pull_request:
+    paths:
+      - 'packages/tv/**'
+      - 'pnpm-lock.yaml'
+      - '.npmrc'
+      - '.github/workflows/android.yml'
+
+concurrency:
+  group: android-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: assembleRelease
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      # RN 0.74 / Gradle 8.6 require JDK 17–21 (not 25).
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages
+        run: sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Setup Gradle (with cache)
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build release APK
+        working-directory: packages/tv/android
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: iptv-player-tv-release-apk
+          path: packages/tv/android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error

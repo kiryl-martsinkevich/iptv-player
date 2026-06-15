@@ -196,6 +196,11 @@ type BufferProfile =
 
 pnpm is installed at `~/.local/share/pnpm/bin/pnpm`. Add `export PNPM_HOME="$HOME/.local/share/pnpm" && export PATH="$PNPM_HOME/bin:$PATH"` to your shell profile if it isn't already active (the installer appended this to `~/.bashrc`).
 
+### CI (GitHub Actions)
+
+- `.github/workflows/ci.yml` — JS gate (typecheck + lint + test) on every push to `main` and all PRs. Node 24 + pnpm 9.
+- `.github/workflows/android.yml` — builds the TV release APK (`assembleRelease`) and uploads it as an artifact. **Path-filtered**: runs only when `packages/tv/**`, `pnpm-lock.yaml`, `.npmrc`, or the workflow itself changes. JDK 17 + Android SDK 35; no NDK (build compiles no C++). Edit the path list if more dirs start affecting the native build.
+
 ---
 
 ## Phase progress
