@@ -55,7 +55,14 @@ Native `android/` project added in Phase 13 (generated from the RN-tvOS `templat
 
 **pnpm + RN gradle paths:** node_modules is hoisted to the repo root (`.npmrc` → `node-linker=hoisted`) because the RN gradle scripts assume node_modules sits next to `android/`. The gradle references (`settings.gradle`, `app/build.gradle` `react {}` block + `native_modules.gradle` applies) are repointed at the repo-root node_modules via `$rootDir/../../../node_modules`. Do not revert the linker without fixing those paths.
 
-**Building the APK** (needs Android SDK + JDK 17 — not buildable in the dev container, which has JDK 25 and no SDK): `cd packages/tv/android && ./gradlew assembleRelease`. Then `adb connect <tv-ip>:5555 && adb install -r app/build/outputs/apk/release/app-release.apk`.
+**Building the APK** (needs Android SDK with platform 35 + build-tools 35.0.0, and JDK 17–21 — **not JDK 25**, which Gradle 8.6 rejects):
+```bash
+export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64   # 17–21, not 25
+export ANDROID_HOME="$HOME/Android/Sdk"
+cd packages/tv/android && ./gradlew assembleRelease   # → app/build/outputs/apk/release/app-release.apk
+adb connect <tv-ip>:5555 && adb install -r app/build/outputs/apk/release/app-release.apk
+```
+The release APK is signed with the template debug keystore (fine for sideload/testing; add a real release keystore before store distribution).
 
 ### packages/desktop
 
@@ -207,7 +214,7 @@ pnpm is installed at `~/.local/share/pnpm/bin/pnpm`. Add `export PNPM_HOME="$HOM
 | 10 — Review fixes | ✅ complete | Security: dev-proxy hardening (origin/host/scheme checks, no-redirect), finite XMLTV entity cap (1M), Xtream URL encoding. Correctness: TV typecheck regression, single settings instance per app, TV retry remount, name-fallback favourite removal (findFavouriteIndex), hls.js autoLevelCapping ABR cap, indexed Now/Next on both platforms, retry-race + retry-budget fixes, mpegts/native retry, reload error surfacing, stable category collapse, gzip (.gz) source support — 107 tests, typechecks + lint clean |
 | 11 — Fullscreen mode | ✅ complete | Desktop: `useFullscreen` hook (Fullscreen API) on the EpgPage player — ⤢ button + double-click + F key (ignored while search focused), Esc exits. TV: `useAutoHideControls` (useTVEventHandler) hides the volume bar after 3s idle, any remote press reveals it; buffer/error badge unaffected. No core changes, no new deps — typechecks + lint clean, 107 tests. |
 | 12 — Collapsible sidebar | ✅ complete | Desktop: ephemeral `sidebarCollapsed` state in EpgPage + a top-left ◀/▶ toggle button (mirrors the fullscreen button, hidden while fullscreen) that hides the channel sidebar so the player + EPG grid span the full window width. No core changes — typechecks + lint clean, 107 tests. |
-| 13 — TV Android native project | 🟡 generated (build unverified) | `packages/tv/android/` generated from the RN-tvOS `template/`: rebranded to `com.iptvplayer.tv` / component `IPTVPlayer`, Android TV leanback manifest (`LEANBACK_LAUNCHER` + `uses-feature`). Root `.npmrc` → `node-linker=hoisted` so RN's gradle node_modules paths resolve (repointed at repo-root node_modules via `$rootDir/../../../node_modules`). `react-native.config.js` added. JS typecheck/lint/107 tests still green; gradle paths resolve. **APK build not run** — dev container lacks Android SDK and has JDK 25 (RN 0.74 needs JDK 17). Next: build `assembleRelease` + `adb install` on a TV-dev machine. |
+| 13 — TV Android native project | ✅ complete (release APK builds) | `packages/tv/android/` generated from the RN-tvOS `template/`: rebranded to `com.iptvplayer.tv` / component `IPTVPlayer`, Android TV leanback manifest (`LEANBACK_LAUNCHER` + `uses-feature` leanback/touchscreen). Root `.npmrc` → `node-linker=hoisted`; RN gradle node_modules paths repointed at repo-root via `$rootDir/../../../node_modules`. Added `babel.config.js` + `@react-native/babel-preset` + `@react-native/metro-config` devDeps (Metro bundling). Build fixes: compileSdk 34→35 + buildTools 35.0.0 (media3 1.8.0 via react-native-video), minSdk 23→24 (async-storage), async-storage 3.1.1→2.x (3.x needs Kotlin 2.1; RN 0.74 ships 1.9.22), `AsyncStorage_kotlinVersion=1.9.22` gradle prop (RN puts kotlinVersion in buildscript.ext, invisible to async-storage). `assembleRelease` produces a signed (debug-key) 55 MB APK with leanback launcher; core+TV typecheck, lint, 107 tests green. **Build needs Android SDK (platform 35, build-tools 35) + JDK 17–21 (not 25); iOS/tvOS Xcode project still not generated.** Release-signing keystore for store distribution is follow-up. |
 
 ---
 
