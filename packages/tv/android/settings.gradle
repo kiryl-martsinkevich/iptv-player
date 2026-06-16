@@ -1,0 +1,6 @@
+rootProject.name = 'IPTVPlayer'
+// pnpm workspace: node_modules is hoisted to the repo root (node-linker=hoisted).
+// settingsDir = packages/tv/android ; repo root node_modules = ../../../node_modules
+apply from: file("../../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); applyNativeModulesSettingsGradle(settings)
+include ':app'
+includeBuild('../../../node_modules/@react-native/gradle-plugin')

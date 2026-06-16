@@ -1,0 +1,26 @@
+buildscript {
+    ext {
+        buildToolsVersion = "35.0.0"
+        // minSdk 24 (Android 7.0) is required by @react-native-async-storage
+        // 3.x; all Android TV hardware is well above this.
+        minSdkVersion = 24
+        // compileSdk 35 is required by androidx.media3 1.8.0 (pulled in by
+        // react-native-video 6.x). targetSdk stays 34. AGP 8.2.1 only warns
+        // about compiling against 35; it does not block.
+        compileSdkVersion = 35
+        targetSdkVersion = 34
+        ndkVersion = "26.1.10909125"
+        kotlinVersion = "1.9.22"
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle")
+        classpath("com.facebook.react:react-native-gradle-plugin")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+    }
+}
+
+apply plugin: "com.facebook.react.rootproject"
